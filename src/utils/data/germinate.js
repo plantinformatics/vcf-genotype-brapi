@@ -17,8 +17,8 @@
  */
 //------------------------------------------------------------------------------
 
-//import BrAPI from '@solgenomics/brapijs';
-function BrAPI() { console.log('BrAPI not imported'); }
+import BrAPI from '@solgenomics/brapijs';
+// function BrAPI() { console.log('BrAPI not imported'); }
 //'./build/BrAPI.js';
 
 //------------------------------------------------------------------------------
@@ -35,7 +35,7 @@ if (isNodeJs) {
 }
 // else
 import fetch from 'fetch';
-import ENV from '../../config/environment';  env = ENV.germinate;
+// import ENV from '../../config/environment';  env = ENV.germinate;
 // import { omit } from 'lodash/object';
 
 /**

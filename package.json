@@ -1,0 +1,27 @@
+{
+  "name": "@plantinformatics/vcf-genotype-brapi",
+  "version": "1.0.0",
+  "description": "Client and server functions to access genotype data from VCF and Germinate via API endpoints via a custom web API and BrAPI",
+  "main": "main.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "rm -rf build && mkdir build && rollup -f umd -n vcf-genotype-brapi -o dist/vcf-genotype-brapi.js -- main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/plantinformatics/vcf-genotype-brapi"
+  },
+  "keywords": [
+    "javascript",
+    "BrAPI",
+    "VCF",
+    "genotype",
+    "bioinformatics"
+  ],
+  "author": "AgriBio / Don Isdale",
+  "license": "GPL-3.0-or-later"
+}
