@@ -7,8 +7,12 @@ export testDataDir=../../data/client
 # args : endpoint jsonFile
 # e.g. sendRequest allelematrix test1.json
 sendRequest() {
-  curl --url "$serverUrl/$1" --data-binary @"$testDataDir"/"$1"/"$2"
+  curl --url "$serverUrl/$1" \
+       --header "Content-Type: application/json" \
+       --data-binary @"$testDataDir"/"$1"/"$2" \
+       --request POST
 }
+
 
 #-------------------------------------------------------------------------------
 
