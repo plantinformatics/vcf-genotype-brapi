@@ -3,22 +3,19 @@
 const util = {promisify}; // require('util');
 
 
-var createIntervalTree = require("interval-tree-1d");
+import { createIntervalTree } from "interval-tree-1d";
 // import createIntervalTree from "interval-tree-1d";
 console.log('createIntervalTree', createIntervalTree);
 
-/* global exports */
-/* global require */
-
 //------------------------------------------------------------------------------
 
-const childProcessProgressive = require('@plantinformatics/child-process-progressive');
+import * as childProcessProgressive from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs';
 const { ErrorStatus } = childProcessProgressive.errorStatus; // = require('./errorStatus.js');
-const {
-  childProcess, dataOutReplyClosure, dataOutReplyClosureLimit, dataReduceClosure,
+import {
+  childProcess, /*dataOutReplyClosure,*/ dataOutReplyClosureLimit, dataReduceClosure,
   stringCountString,
-} = require('@plantinformatics/child-process-progressive'); // ../utilities/child-process
-const { binEvenLengthRound, binBoundaries } = require('interval-bins'); // ../utilities/block-features');
+} from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs'; // ../utilities/child-process
+import { binEvenLengthRound, binBoundaries } from 'interval-bins'; // ../utilities/block-features');
 
 //------------------------------------------------------------------------------
 
@@ -203,8 +200,8 @@ function vcfGenotypeLookup(datasetDir, scope, preArgs_, nLines, dataOutCb, cb) {
     moreParams,
     dataOutCb, cb, /*progressive*/ true);
 
-};
-exports.vcfGenotypeLookup = vcfGenotypeLookup;
+}
+export { vcfGenotypeLookup }
 
 //------------------------------------------------------------------------------
 
@@ -223,7 +220,8 @@ exports.vcfGenotypeLookup = vcfGenotypeLookup;
  * { "_id" : 33000000, "count" : 38201, "idWidth" : [ 1000000 ] }
  * { "_id" : 34000000, "count" : 47323, "idWidth" : [ 1000000 ] }
  */
-exports.vcfGenotypeFeaturesCounts = function(
+export { vcfGenotypeFeaturesCounts }
+function vcfGenotypeFeaturesCounts(
   block, interval, nBins = 10, isZoomed, userOptions, cb) {
   // header comment copied from block-features.js : blockFeaturesCounts()
   const fnName = 'vcfGenotypeFeaturesCounts';
@@ -418,14 +416,14 @@ function vcfGenotypeFeaturesCountsStatus(datasetDir, cb) {
     moreParams,
     dataOutCb, cb, /*progressive*/ false);
 };
-exports.vcfGenotypeFeaturesCountsStatus = vcfGenotypeFeaturesCountsStatus;
+export { vcfGenotypeFeaturesCountsStatus }
 
 const vcfGenotypeFeaturesCountsStatusP = util.promisify(vcfGenotypeFeaturesCountsStatus);
 
 
 //------------------------------------------------------------------------------
 
-exports.checkVCFsAreInstalled = checkVCFsAreInstalled;
+export { checkVCFsAreInstalled }
 /** Check if base VCF and SNPLists are installed for any VCF datasets in datasets.
  * The requirement for SNPLists is only applied if the base VCF is large.
  * vcfGenotypeLookup.{bash,Makefile} will automatically generate

@@ -37,6 +37,6 @@ export class AllelematrixController {
   allelematrix(): object {
     // This is where you would add the logic to fetch and return the actual data
     // For now, we are returning a static example response
-    return ALLELE_MATRIX_RESPONSE.content['application/json'].example;
+    return ALLELE_MATRIX_RESPONSE?.content?.['application/json']?.example;
   }
 }

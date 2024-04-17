@@ -1,2 +1,2 @@
 export * from './ping.controller';
-export * from './allelematrix.controller';
+// export * from './allelematrix.controller';

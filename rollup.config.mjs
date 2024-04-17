@@ -6,7 +6,6 @@ export default [
   input: 'main.mjs',
 
   external: ['interval-tree-1d', '@solgenomics/brapijs', 'fetch',
-    '@plantinformatics/child-process-progressive',
     'interval-bins'],
   output: {
     name: 'vcf-genotype-brapi',
@@ -21,11 +20,15 @@ export default [
   }
 },
 {
-  input: 'main.cjs',
+  input: 'main.node.mjs',
+  external: [
+    '@plantinformatics/child-process-progressive',
+    'interval-bins'],
+
   output: {
     name: 'vcf-genotype-brapi-node',
-    file: 'dist/vcf-genotype-brapi-node.js',
-    format: 'cjs',
+    file: 'dist/vcf-genotype-brapi-node.mjs',
+    format: 'esm',
   },
   plugins: [commonjs(), resolve()]
 }

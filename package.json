@@ -2,7 +2,7 @@
   "name": "@plantinformatics/vcf-genotype-brapi",
   "version": "1.0.0",
   "description": "Client and server functions to access genotype data from VCF via a custom web API and BrAPI",
-  "main": "main.js",
+  "main": "main.mjs",
   "files": [
     "dist",
     "src"
