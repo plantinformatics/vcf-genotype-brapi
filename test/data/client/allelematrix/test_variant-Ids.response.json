@@ -1,0 +1,56 @@
+{
+    "metadata": {
+        "status": [
+            {}
+        ]
+    },
+    "result": {
+        "callSetDbIds": [
+            "Database2§1",
+            "Database2§2"
+        ],
+        "dataMatrices": [
+            {
+                "dataMatrix": [
+                    [
+                        "0",
+                        "0"
+                    ],
+                    [
+                        "0",
+                        "0"
+                    ]
+                ],
+                "dataMatrixAbbreviation": "GT",
+                "dataMatrixName": "Genotype",
+                "dataType": "string"
+            }
+        ],
+        "pagination": [
+            {
+                "dimension": "VARIANTS",
+                "page": 0,
+                "pageSize": 1000,
+                "totalCount": 2,
+                "totalPages": 1
+            },
+            {
+                "dimension": "CALLSETS",
+                "page": 0,
+                "pageSize": 1000,
+                "totalCount": 2,
+                "totalPages": 1
+            }
+        ],
+        "sepPhased": "|",
+        "sepUnphased": "/",
+        "unknownString": ".",
+        "variantDbIds": [
+            "Database2§scaffold38755_1207866",
+            "Database2§scaffold38755_1235130"
+        ],
+        "variantSetDbIds": [
+            "Database2§1§run1"
+        ]
+    }
+}
