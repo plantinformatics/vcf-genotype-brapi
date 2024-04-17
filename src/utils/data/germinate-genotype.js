@@ -1,7 +1,8 @@
 // const util = require('util');
 // promisify = util.promisify;
-import bluebird from 'bluebird';
-const promisify = bluebird/*Promise*/.promisify;
+// import bluebird from 'bluebird';
+// const promisify = bluebird/*Promise*/.promisify;
+import { promisifyFn as promisify } from './promisify';
 
 import { Germinate } from './germinate';
 // const { ErrorStatus } = require('./errorStatus.js');

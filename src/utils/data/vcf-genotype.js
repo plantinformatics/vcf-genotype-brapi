@@ -1,19 +1,24 @@
-const util = require('util');
+// import { promisifyFn as promisify } from './promisify';
+// const util = require('util');
+const util = {promisify}; // require('util');
+
 
 var createIntervalTree = require("interval-tree-1d");
+// import createIntervalTree from "interval-tree-1d";
+console.log('createIntervalTree', createIntervalTree);
 
 /* global exports */
 /* global require */
 
 //------------------------------------------------------------------------------
 
-const { ApiServer, apiServers, blockServer } = require('./api-server');
-const { ErrorStatus } = require('./errorStatus.js');
+const childProcessProgressive = require('@plantinformatics/child-process-progressive');
+const { ErrorStatus } = childProcessProgressive.errorStatus; // = require('./errorStatus.js');
 const {
   childProcess, dataOutReplyClosure, dataOutReplyClosureLimit, dataReduceClosure,
   stringCountString,
-} = require('../utilities/child-process');
-const { binEvenLengthRound, binBoundaries } = require('../utilities/block-features');
+} = require('@plantinformatics/child-process-progressive'); // ../utilities/child-process
+const { binEvenLengthRound, binBoundaries } = require('interval-bins'); // ../utilities/block-features');
 
 //------------------------------------------------------------------------------
 
