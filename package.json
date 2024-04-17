@@ -1,7 +1,7 @@
 {
   "name": "@plantinformatics/vcf-genotype-brapi",
   "version": "1.0.0",
-  "description": "Client and server functions to access genotype data from VCF and Germinate via API endpoints via a custom web API and BrAPI",
+  "description": "Client and server functions to access genotype data from VCF via a custom web API and BrAPI",
   "main": "main.js",
   "files": [
     "dist",
@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "rm -rf build && mkdir build && rollup -f umd -n vcf-genotype-brapi -o dist/vcf-genotype-brapi.js -- main.js"
+    "prepare.old": "rm -rf build && mkdir build && rollup -f umd -n vcf-genotype-brapi -o dist/vcf-genotype-brapi.js  -e interval-tree-1d,@solgenomics/brapijs -- main.js",
+    "prepare": "rm -rf dist && mkdir dist && rollup -c",
+    "terminal_reset_style": "bash scripts/terminal_reset_style.bash"
   },
   "repository": {
     "type": "git",
@@ -23,5 +25,11 @@
     "bioinformatics"
   ],
   "author": "AgriBio / Don Isdale",
-  "license": "GPL-3.0-or-later"
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@solgenomics/brapijs": "^2.0.3",
+    "interval-tree-1d": "^1.0.4"
+  }
 }
