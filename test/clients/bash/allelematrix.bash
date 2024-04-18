@@ -27,7 +27,7 @@ sendRequest() {
 if (return 0 2>/dev/null); then : ; else
   #---------------------------------------
 
-  usageText="Usage e.g. : $0 --server gigwa allelematrix"
+  usageText="Usage e.g. : $0 -s|--server gigwa -e|--endpoint allelematrix"
   #	Parse command-line arguments
   # Based on https://www.baeldung.com/linux/bash-parse-command-line-arguments
   VALID_ARGS=$(getopt -o vs:e: --long verbose,server:,endpoint: -- "$@")
@@ -40,20 +40,29 @@ if (return 0 2>/dev/null); then : ; else
   while [ : ]; do
     case "$1" in
       -v | --verbose)
-	verbose=1
-	shift
-	;;
+        verbose=1
+        shift
+        ;;
       -s | --server)
-	serverDir="$2"
-	serverUrl="https://gigwa.plantinformatics.io/$2/rest/brapi/v2/search"
-	echo "Processing 'server' option. Input argument is '$2'"
-	shift 2
-	;;
+        echo "Processing 'server' option. Input argument is '$2'"
+        # serverDir : planning to have a suite of test json files customised for the database of each server
+        case "$2" in
+          gigwa)
+            serverUrl="https://gigwa.plantinformatics.io/$2/rest/brapi/v2/search"
+            serverDir="$2"
+            ;;
+          localhost)
+            serverUrl="http://localhost:3000"
+            serverDir="$2"
+            ;;
+        esac
+        shift 2
+        ;;
       -e | --endpoint)
-	endpoint="$2"
-	echo "Processing 'server' option. Input argument is '$2'"
-	shift 2
-	;;
+        endpoint="$2"
+        echo "Processing 'endpoint' option. Input argument is '$2'"
+        shift 2
+        ;;
       --) shift; 
           break 
           ;;
@@ -66,12 +75,12 @@ if (return 0 2>/dev/null); then : ; else
   else
     case "$endpoint" in
       allelematrix)
-	sendRequest "$endpoint" test1.json
-	;;
+        sendRequest "$endpoint" test1.json
+        ;;
       *)
-	echo "$usageText" 1>&2
-	exit 1;
-	;;
+        echo "$usageText" 1>&2
+        exit 1;
+        ;;
     esac
   fi
 
