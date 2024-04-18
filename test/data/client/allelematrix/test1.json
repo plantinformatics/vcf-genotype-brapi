@@ -1,12 +1,12 @@
 {
     "callSetDbIds": [
-        "Database2§1",
-        "Database2§2"
+        "database1§1",
+        "database1§2"
     ],
-    "variantSetDbId": "Database2§1§run1",
+    "variantSetDbId": "database1§1§run1",
     "positionRanges": [
-        "chr1B:1420884-1421208", 
-        "chr1A:1207866-1235130"
+        "chr1B:1416084-1420884", 
+        "chr1A:1190119-1207866"
     ],
     "dataMatrixAbbreviations": [
         "GT"
