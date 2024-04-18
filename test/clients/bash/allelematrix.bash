@@ -10,7 +10,8 @@ sendRequest() {
   curl --url "$serverUrl/$1" \
        --header "Content-Type: application/json" \
        --data-binary @"$testDataDir"/"$1"/"$2" \
-       --request POST
+       --request POST \
+       --insecure
 }
 
 
@@ -44,7 +45,7 @@ if (return 0 2>/dev/null); then : ; else
 	;;
       -s | --server)
 	serverDir="$2"
-	serverUrl="http://127.0.0.1:8080/$2/rest/brapi/v2/search"
+	serverUrl="https://gigwa.plantinformatics.io/$2/rest/brapi/v2/search"
 	echo "Processing 'server' option. Input argument is '$2'"
 	shift 2
 	;;
