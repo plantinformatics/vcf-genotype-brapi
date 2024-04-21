@@ -15,7 +15,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare.old": "rm -rf build && mkdir build && rollup -f umd -n vcf-genotype-brapi -o dist/vcf-genotype-brapi.js  -e interval-tree-1d,@solgenomics/brapijs -- main.js",
-    "prepare": "rm -rf dist && mkdir dist && rollup -c",
+    "prepare": "rm -rf dist && mkdir dist && rollup -c rollup.config.mjs",
     "terminal_reset_style": "bash scripts/terminal_reset_style.bash"
   },
   "repository": {
