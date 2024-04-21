@@ -1,20 +1,33 @@
 // import { promisifyFn as promisify } from './promisify';
 // const util = require('util');
-const util = {promisify}; // require('util');
+// const util = {promisify}; // require('util');
+import { promisify } from 'util';
 
 
-import { createIntervalTree } from "interval-tree-1d";
+import intervalTree1d from "interval-tree-1d";
+const { createIntervalTree } = intervalTree1d;
 // import createIntervalTree from "interval-tree-1d";
 console.log('createIntervalTree', createIntervalTree);
 
 //------------------------------------------------------------------------------
 
 import * as childProcessProgressive from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs';
-const { ErrorStatus } = childProcessProgressive.errorStatus; // = require('./errorStatus.js');
-import {
-  childProcess, /*dataOutReplyClosure,*/ dataOutReplyClosureLimit, dataReduceClosure,
+console.log('childProcessProgressive', childProcessProgressive);
+const { ErrorStatus } = childProcessProgressive.default.errorStatus; // = require('./errorStatus.js');
+
+/*
+function childProcess() { }
+function dataOutReplyClosureLimit() { }
+function dataReduceClosure() { }
+function stringCountString() { }
+*/
+
+const /*import*/ {
+  childProcess, dataOutReplyClosureLimit, dataReduceClosure,
   stringCountString,
-} from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs'; // ../utilities/child-process
+} = childProcessProgressive.default.childProcess;
+// from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs'; // ../utilities/child-process
+
 import { binEvenLengthRound, binBoundaries } from 'interval-bins'; // ../utilities/block-features');
 
 //------------------------------------------------------------------------------
@@ -418,7 +431,7 @@ function vcfGenotypeFeaturesCountsStatus(datasetDir, cb) {
 };
 export { vcfGenotypeFeaturesCountsStatus }
 
-const vcfGenotypeFeaturesCountsStatusP = util.promisify(vcfGenotypeFeaturesCountsStatus);
+const vcfGenotypeFeaturesCountsStatusP = promisify(vcfGenotypeFeaturesCountsStatus);
 
 
 //------------------------------------------------------------------------------

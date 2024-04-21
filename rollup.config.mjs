@@ -1,5 +1,6 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import alias from '@rollup/plugin-alias';
 
 export default [
 {
@@ -17,12 +18,22 @@ export default [
       'fetch': 'fetch',
       '@plantinformatics/child-process-progressive': 'childProcessProgressive'
     }
-  }
+  },
+  plugins: [
+    alias({
+      entries: [
+        { find: 'vcf-genotype-brapi-browser', replacement: 'vcf-genotype-brapi/dist/vcf-genotype-brapi.js' }
+      ]
+    })
+  ]
 },
 {
   input: 'main.node.mjs',
   external: [
-    '@plantinformatics/child-process-progressive',
+    'util',
+    'interval-tree-1d',
+    '@plantinformatics/child-process-progressive',	// not effective
+    '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs',
     'interval-bins'],
 
   output: {

@@ -2,11 +2,16 @@
   "name": "@plantinformatics/vcf-genotype-brapi",
   "version": "1.0.0",
   "description": "Client and server functions to access genotype data from VCF via a custom web API and BrAPI",
-  "main": "main.mjs",
+  "main": "main.node.mjs",
+  "module": "main.mjs",
+  "browser": "main.mjs",
   "files": [
     "dist",
     "src"
   ],
+  "imports": {
+    "#*": "./src/*"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare.old": "rm -rf build && mkdir build && rollup -f umd -n vcf-genotype-brapi -o dist/vcf-genotype-brapi.js  -e interval-tree-1d,@solgenomics/brapijs -- main.js",
@@ -31,5 +36,8 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@solgenomics/brapijs": "^2.0.3",
     "interval-tree-1d": "^1.0.4"
+  },
+  "devDependencies": {
+    "@rollup/plugin-alias": "^5.1.0"
   }
 }
