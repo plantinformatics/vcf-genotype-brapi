@@ -5,6 +5,7 @@
   "main": "main.node.mjs",
   "module": "main.mjs",
   "browser": "main.mjs",
+	"type": "module",
   "files": [
     "dist",
     "src"
