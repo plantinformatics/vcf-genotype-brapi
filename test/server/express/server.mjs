@@ -40,6 +40,11 @@ const app = express();
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
+// GET endpoint for /api/token
+app.get('/api/token', (req, res) => {
+    res.json({ "token": "Test_Token" });
+});
+
 // POST endpoint for /allelematrix
 app.post('/allelematrix', allelematrix);
 
