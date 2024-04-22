@@ -5,6 +5,7 @@ import { program } from 'commander';
 // console.log('express', express);
 import bodyParser from 'body-parser';
 // console.log('bodyParser', bodyParser);
+import cors from 'cors';
 
 import { allelematrix } from './allelematrix.js';
 
@@ -39,6 +40,8 @@ const app = express();
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
+// Enable CORS for all routes
+app.use(cors());
 
 // GET endpoint for /api/token
 app.get('/api/token', (req, res) => {
