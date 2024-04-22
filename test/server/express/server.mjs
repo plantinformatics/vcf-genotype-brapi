@@ -11,6 +11,7 @@ import { allelematrix } from './allelematrix.js';
 program
   .name('node server.mjs')
   .description('Command line options for the server')
+  .usage('[options]')
   .option('-h, --help', 'output usage information')
   .option('--version', 'output the version number')
   .option('-v, --verbose', 'output extra debugging')
@@ -19,6 +20,10 @@ program
   .option('--jsonDir <path>', 'Directory path for JSON files')
   .option('--datasetsJson <path>', 'Path to datasets JSON file')
   .parse(process.argv);
+
+program.on('--help', () => {
+  console.error('Usage message for invalid command-line arguments');
+});
 
 const options = program.opts();
 if (options.help) {
