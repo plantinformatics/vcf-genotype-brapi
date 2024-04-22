@@ -26,6 +26,9 @@ program.on('--help', () => {
 });
 
 const options = program.opts();
+if (options.verbose) {
+    console.log('Parsed command-line options:', options);
+}
 if (options.help) {
   program.help();
 }
