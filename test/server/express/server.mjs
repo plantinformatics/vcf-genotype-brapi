@@ -43,8 +43,8 @@ app.use(bodyParser.json());
 // Enable CORS for all routes
 app.use(cors());
 
-// GET endpoint for /api/token
-app.get('/api/token', (req, res) => {
+// POST endpoint for /api/token
+app.post('/api/token', (req, res) => {
     res.json({ "token": "Test_Token" });
 });
 
