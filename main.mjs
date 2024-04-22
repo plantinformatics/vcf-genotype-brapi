@@ -10,6 +10,8 @@ import * as vcfFeature from './src/utils/data/vcf-feature.js';
 
 import * as germinateGenotype from './src/utils/data/germinate-genotype.js';
 import * as germinate from './src/utils/data/germinate.js';
+/* Alternately use either browser : bluebird, or node : util */
+import * as promisify from './src/utils/data/promisify.js';
 
-export default {vcfFeature, germinateGenotype, germinate};
+export default {vcfFeature, germinateGenotype, germinate, promisify};
 

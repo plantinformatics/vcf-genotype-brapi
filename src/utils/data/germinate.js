@@ -28,13 +28,25 @@ const isNodeJs = typeof process !== 'undefined';
 var bent;
 //var omit;
 let env;
+
+/** based on extract from @solgenomics/brapijs/src/BrAPINode.js */
+let fetch;
+try {
+    fetch = window.fetch;
+} catch(e){
+    fetch = require('node-fetch');
+}
+
+/*
 if (isNodeJs) {
   bent = require('bent');
   // omit = require('lodash/object');
   env = process.env;
 }
-// else
-import fetch from 'fetch';
+else {
+  import('fetch').then(result => {fetch = result; console.log(fetch, fetch);});
+}
+*/
 // import ENV from '../../config/environment';  env = ENV.germinate;
 // import { omit } from 'lodash/object';
 

@@ -2,9 +2,9 @@
 // promisify = util.promisify;
 // import bluebird from 'bluebird';
 // const promisify = bluebird/*Promise*/.promisify;
-import { promisifyFn as promisify } from './promisify';
+import { promisifyFn as promisify } from './promisify.js';
 
-import { Germinate } from './germinate';
+import { Germinate } from './germinate.js';
 // const { ErrorStatus } = require('./errorStatus.js');
 
 //------------------------------------------------------------------------------
