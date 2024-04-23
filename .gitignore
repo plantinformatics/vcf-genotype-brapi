@@ -4,3 +4,6 @@ dist
 # Emacs Editor backup files
 *~
 .aider*
+
+# output from npm pack
+*.tgz

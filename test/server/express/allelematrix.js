@@ -102,3 +102,19 @@ function allelematrix(req, res) {
 
 //------------------------------------------------------------------------------
 
+export { allelematrices }
+/** Receive GET request from :
+ * @solgenomics/brapijs/src/brapi_methods/allelematrices.js
+ */
+function allelematrices(req, res) {
+  console.log('Received query:', req.query);
+
+  // Mock response data
+  const responseData = test_position_ranges_response;
+
+  // Send the response back to the client
+  res.json(responseData);
+};
+
+//------------------------------------------------------------------------------
+

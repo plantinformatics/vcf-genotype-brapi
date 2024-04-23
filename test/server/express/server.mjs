@@ -1,13 +1,22 @@
 /* global require */
+/* global process */
+
+//--------------------------------------
 
 import express, { json } from 'express';
-import { program } from 'commander';
 // console.log('express', express);
+
+import { program } from 'commander';
 import bodyParser from 'body-parser';
 // console.log('bodyParser', bodyParser);
 import cors from 'cors';
 
-import { allelematrix } from './allelematrix.js';
+//--------------------------------------
+
+import { maps } from './maps.js';
+import { allelematrix, allelematrices } from './allelematrix.js';
+
+//------------------------------------------------------------------------------
 
 program
   .name('node server.mjs')
@@ -28,7 +37,7 @@ program.on('--help', () => {
 
 const options = program.opts();
 if (options.verbose) {
-    console.log('Parsed command-line options:', options);
+  console.log('Parsed command-line options:', options);
 }
 if (options.help) {
   program.help();
@@ -36,25 +45,45 @@ if (options.help) {
 
 const PORT = options.apiPort;
 
+//------------------------------------------------------------------------------
+
 const app = express();
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
 // Enable CORS for all routes
-app.use(cors());
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  maxAge: 86400
+};
+app.use(cors(corsOptions));
+
+//------------------------------------------------------------------------------
 
 // POST endpoint for /api/token
 app.post('/api/token', (req, res) => {
-    res.json({ "token": "Test_Token" });
+  res.json({ token: "Test_Token" });
 });
+
+app.get('/api/brapi/v2/maps', maps);
+
+/** Receive GET request from :
+ * @solgenomics/brapijs/src/brapi_methods/allelematrices.js
+ */
+app.get('/api/brapi/v2/allelematrices', allelematrices);
 
 // POST endpoint for /allelematrix
 app.post('/allelematrix', allelematrix);
 
+//------------------------------------------------------------------------------
+
 // Start the server
 app.listen(PORT, () => {
-    if (options.verbose) {
-        console.log(`Verbose mode enabled`);
-    }
-    console.log(`Server is running on port ${options.apiPort}`);
+  if (options.verbose) {
+    console.log(`Verbose mode enabled`);
+  }
+  console.log(`Server is running on port ${options.apiPort}`);
 });
+
+//------------------------------------------------------------------------------
