@@ -84,10 +84,11 @@ const test_position_ranges_response =
 
 export { allelematrix }
 function allelematrix(req, res) {
+  const fnName = 'allelematrix';
   // Extract data from the request body
   const { callSetDbIds, variantSetDbId, positionRanges, dataMatrixAbbreviations } = req.body;
 
-  console.log('Received data:', req.body);
+  console.log(fnName, 'Received data:', req.body);
 
   // Mock response data
   const data = test_position_ranges_response;
@@ -107,7 +108,8 @@ export { allelematrices }
  * @solgenomics/brapijs/src/brapi_methods/allelematrices.js
  */
 function allelematrices(req, res) {
-  console.log('Received query:', req.query);
+  const fnName = 'allelematrices';
+  console.log(fnName, 'Received query:', req.query);
 
   // Mock response data
   const responseData = test_position_ranges_response;

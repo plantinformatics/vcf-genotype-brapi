@@ -21,21 +21,33 @@ export { useGerminate };
  * authenticated, so they can use it to fulfill requests.
  * @param url	domain URL - base path of endpoint URLs, e.g. germinate.plantinformatics.io
  * @param username, password  optional. Used in frontend not in backend.
+ * @param token alternative to username and password if no password required,
+ * i.e.  token may be a string meaning no authentication required (use a
+ * non-empty string because '' is falsey, and germinate.js : connectedP() checks
+ * if (! this.token) ).
  * @return a promise which resolves with germinateInstance or
  * rejects with ErrorStatus(), which the caller can pass to response cb.
  */
-function useGerminate(url, username, password) {
+function useGerminate(url, username, password, token) {
   const fnName = 'useGerminate';
   let connectedP;
   if (! germinateInstance) {
       germinateInstance = new Germinate(url);
   }
+  if (typeof token === 'string') {
+    germinateInstance.setToken(token);
+  } else
   // if pre-existing germinateInstance and it has these fields, they are overridden.
   if (username && password) {
     germinateInstance.setCredentials(username, password);
   }
   connectedP = germinateInstance.connectedP()
-    .then(() => germinateInstance)
+    .then(() => {
+      if (! url.match(/germinate/i)) {
+        germinateInstance.serverinfo();
+        // sets : germinateInstance.data_serverinfo
+      }
+      return germinateInstance;})
     .catch(error => {
       console.log(fnName, 'Germinate', error);
       // ErrorStatus() is used in server, not useful in frontend/.

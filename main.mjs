@@ -8,10 +8,11 @@ import * as vcfFeature from './src/utils/data/vcf-feature.js';
  *  src/utils/data/nodeJs/germinate.js
  */
 
+import * as brapiGenotype     from './src/utils/data/brapi-genotype.js';
 import * as germinateGenotype from './src/utils/data/germinate-genotype.js';
-import * as germinate from './src/utils/data/germinate.js';
+import * as germinate         from './src/utils/data/germinate.js';
 /* Alternately use either browser : bluebird, or node : util */
-import * as promisify from './src/utils/data/promisify.js';
+import * as promisify         from './src/utils/data/promisify.js';
 
-export default {vcfFeature, germinateGenotype, germinate, promisify};
+export default {vcfFeature, brapiGenotype, germinateGenotype, germinate, promisify};
 

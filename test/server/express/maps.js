@@ -23,7 +23,8 @@ const maps_response = {
 
 export { maps }
 function maps(req, res) {
-  console.log('Received query:', req.query);
+  const fnName = 'maps';
+  console.log(fnName, 'Received query:', req.query);
 
   /** result is in the form : {result : {data : [{mapDbId}]}} ? */
   const responseData = maps_response;
