@@ -7,7 +7,10 @@ export default [
   input: 'main.mjs',
 
   external: ['interval-tree-1d', '@solgenomics/brapijs', 'fetch',
-    'interval-bins'],
+    'interval-bins',
+    '@ember/array',
+    '@ember/runloop'
+  ],
   output: {
     name: 'vcf-genotype-brapi',
     file: 'dist/vcf-genotype-brapi.js',
