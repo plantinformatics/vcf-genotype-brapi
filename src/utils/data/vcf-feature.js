@@ -609,24 +609,39 @@ function addFeaturesGerminate(block, requestFormat, replaceResults, selectedServ
     feature._name = markerName;
     feature.id =
       block.id + '_' + datasetID + '_' + markerName;
-    let existingFeature = store.peekRecord('feature', feature.id);
-    if (existingFeature) {
-      mergeFeatureValues(existingFeature, feature);
-      feature = existingFeature;
-      // this is included in createdFeatures, since it is a result from the current request.
-      // as noted in addFeaturesJson(), can rename to resultFeatures.
-    } else {
-      // addFeaturesJson() uses feature.blockId - not sure if that is applicable
-      feature.blockId = block;
-      // Replace Ember.Object() with models/feature.
-      feature = store.createRecord('feature', feature);
-    }
+
+    feature = featureMergeOrCreate(store, block, feature);
 
     return feature;
   });
 
   dLog(fnName, data.length, columnNames.length);
 
+  featureUpdateSelectedAndBlock(selectedService, block, createdFeatures);
+
+  let result = {createdFeatures, sampleNames};
+  return result;
+}
+
+function featureMergeOrCreate(store, block, feature) {
+  /** used in addFeaturesGerminate() and addFeaturesBrapi() */
+  let existingFeature = store.peekRecord('feature', feature.id);
+  if (existingFeature) {
+    mergeFeatureValues(existingFeature, feature);
+    feature = existingFeature;
+    // this is included in createdFeatures, since it is a result from the current request.
+    // as noted in addFeaturesJson(), can rename to resultFeatures.
+  } else {
+    // addFeaturesJson() uses feature.blockId - not sure if that is applicable
+    feature.blockId = block;
+    // Replace Ember.Object() with models/feature.
+    feature = store.createRecord('feature', feature);
+  }
+  return feature;
+}
+
+function featureUpdateSelectedAndBlock(selectedService, block, createdFeatures) {
+  /** used in addFeaturesGerminate() and addFeaturesBrapi() */
   if (selectedService) {
     const
     feature = createdFeatures[0],
@@ -642,10 +657,9 @@ function addFeaturesGerminate(block, requestFormat, replaceResults, selectedServ
 
   blockEnsureFeatureCount(block);
   block.addFeaturePositions(createdFeatures);
-
-  let result = {createdFeatures, sampleNames};
-  return result;
 }
+
+//------------------------------------------------------------------------------
 
 /** Split the variantName from either Germinate or Spark server into component elements.
  * @param variantName
@@ -677,6 +691,88 @@ function variantNameSplit(variantName, traceUnmatched) {
   }
   return {markerName, positionText};
 }
+
+//------------------------------------------------------------------------------
+
+export { resultIsBrapi }
+/** @return true if the genotypeLookup API result is from Brapi,
+ * false if VCF, from bcftools, or Germinate.
+ * Related : resultIsGerminate().
+ */
+function resultIsBrapi(data) {
+  return typeof data === 'object';
+}
+
+export { addFeaturesBrapi }
+/** Parse Brapi genotype calls result and add features to block.
+ * Params are the same as addFeaturesGerminate(), except for data.
+ * @return
+ *  { createdFeatures : array of created Features,
+ *    sampleNames : array of sample names }
+ * @param requestFormat 'CATG', 'Numerical', ...
+ * Not used; BrAPI "GT" returns Numerical format.
+ * refn : dataMatrixAbbreviations and dataMatrixNames	in https://brapigenotyping21.docs.apiary.io/#/reference/allele-matrix/get-allelematrix
+ * @param data result from BrAPI allelematrix request
+ *  {callSetDbIds, dataMatrices, variantDbIds, ... }
+ */
+function addFeaturesBrapi(block, requestFormat, replaceResults, selectedService, data, options) {
+  const fnName = 'addFeaturesBrapi';
+  dLog(fnName, block.id, block.mapName, data.callSetDbIds?.length,
+       data.variantDbIds?.length, data.dataMatrices?.length);
+  if (replaceResults) {
+    dLog(fnName, 'replaceResults not implemented');
+  }
+
+  const
+  store = block.get('store'),
+  columnNames = data.callSetDbIds,
+  sampleNames = columnNames,
+  dataset = block.get('datasetId'),
+  samples = dataset.get('samples'),
+  samplesById = Object.fromEntries(samples.map(s => [s.sampleDbId, s])),
+
+  createdFeatures = data.variantDbIds.map((variantDbId, variantIndex) => {
+    const
+    /** only .dataMatrices[0] is handled; [0] should be the data type requested
+     * by .dataMatrixAbbreviations / dataMatrixNames, and this function will
+     * request 'GT'.
+     */
+    row = data.dataMatrices[0].dataMatrix[variantIndex],
+    entries = data.callSetDbIds.map((callSetDbId, sampleIndex) => [samplesById[callSetDbId].sampleName, row[sampleIndex]]),
+    values = Object.fromEntries(entries),
+    f = {values};
+
+    let position;
+    let match;
+    if ((match = variantDbId.match(/(.+)_(.+)/))) {
+      const
+      [wholeString, database_scaffoldNumber, scaffoldOffsetText] = match;
+      position = +scaffoldOffsetText;
+    }
+    if (isNaN(position)) {
+      position = 0;
+    }
+    f.value_0 = position;
+    f.value = [position];
+
+    let feature = f;
+
+    feature._name = variantDbId;
+    feature.id = variantDbId;
+
+    feature = featureMergeOrCreate(store, block, feature);
+
+    return feature;
+  });
+
+  dLog(fnName, data.dataMatrices?.length, data.callSetDbIds?.length, columnNames.length);
+
+  featureUpdateSelectedAndBlock(selectedService, block, createdFeatures);
+
+  let result = {createdFeatures, sampleNames};
+  return result;
+}
+
 
 // -----------------------------------------------------------------------------
 

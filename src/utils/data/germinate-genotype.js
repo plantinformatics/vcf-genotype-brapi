@@ -43,7 +43,7 @@ function useGerminate(url, username, password, token) {
   }
   connectedP = germinateInstance.connectedP()
     .then(() => {
-      if (! url.match(/germinate/i)) {
+      if (! germinateInstance.data_serverinfo && url && ! url.match(/germinate/i)) {
         germinateInstance.serverinfo();
         // sets : germinateInstance.data_serverinfo
       }

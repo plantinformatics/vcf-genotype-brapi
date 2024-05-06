@@ -234,7 +234,6 @@ function fetchEndpoint_fetch(endpoint, method = 'GET', body = undefined) {
         'Accept': '*/*',  // application/json, text/plain, 
         // 'Accept-Language': 'en-US,en;q=0.5',
         'Content-Type': 'application/json;charset=utf-8', // text/plain
-        'Authorization': 'Bearer ' + token,
 /*
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
@@ -251,6 +250,10 @@ function fetchEndpoint_fetch(endpoint, method = 'GET', body = undefined) {
       method,
       'mode': 'cors',
     };
+  if (! tokenNull) {
+    headerObj.Authorization = 'Bearer ' + token;
+  }
+
   if (body) {
     /** fetch() requires JSON.stringify(body), whereas
      * bent() does not require body to be a string - it will JSON.stringify().

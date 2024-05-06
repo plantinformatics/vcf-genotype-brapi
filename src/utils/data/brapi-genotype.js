@@ -161,20 +161,21 @@ function references(studyDbIds) {
 }
 
 
-
-
 //------------------------------------------------------------------------------
 
 /**
  * @param studyDbIds  array of string studyDbId
  */
-function samples(studyDbIds) {
+function samples_old(studyDbIds) {
   const fnName = 'samples';
   const promise = new Promise((resolve, reject) => {
     const
     germinate = this.germinateInstance,
+    /** useOld=true to not redirect to GET.  default behavior.
+     * but this sends samples-search POST, so use fetchEndpoint() instead
+     */
     frayed = germinate.brapi_root
-    .samples({studyDbIds})
+    .search_samples({studyDbIds}, /*behavior*/undefined, /*useOld*/true)
     .all(function(objects){
       console.log(fnName, objects);
       dataModel.samples = objects;
@@ -184,6 +185,31 @@ function samples(studyDbIds) {
   });
   return promise;
 }
+
+
+/**
+ * @param studyDbIds  array of string studyDbId
+ * @param promise yielding sampleNames[]
+ */
+function samples(studyDbIds) {
+  const fnName = 'samples';
+  const
+  endpoint = brapi_v + '/' + 'search/samples',
+  body =  {studyDbIds},
+  promise = this.germinateInstance.fetchEndpoint(endpoint, 'POST', body);
+  if (trace) {
+    dLog(fnName, 'serverURL', this.host, 'POST', {endpoint, body});
+  }
+  const dataP = promise
+    .then(response => {
+      dLog(fnName, response);
+      /* samples array may be large, so possibly .metadata will be required by caller */
+      return response?.metadata ? response.result.data : response;
+    });
+ 
+  return dataP;
+}
+
 
 //------------------------------------------------------------------------------
 
@@ -213,6 +239,45 @@ function allelematrices(data) {
   return promise;
 }
 
+export { allelematrix }
+/**
+ * @param queryData
+ * {
+ *    callSetDbIds, // aka  sampleDbIds,
+ *    variantSetDbId,
+ *    positionRanges,
+ *    dataMatrixAbbreviations: ['GT'],
+ * }
+ * If both callSetDbIds and sampleDbIds are given, callSetDbIds will be used.
+ * @param promise yielding response.result, i.e.
+ * { callSetDbIds, dataMatrices, pagination,
+ *   sepPhased: "|",
+ *   sepUnphased: "/",
+ *   unknownString: ".",
+ *   variantDbIds: [ ... ]
+ *   variantSetDbIds: [ ... ] }
+ * or maybe { metadata, result}
+ */
+function allelematrix(queryData) {
+  const fnName = 'allelematrix';
+  const
+  endpoint = brapi_v + '/' + 'search/allelematrix',
+  body = queryData,
+  promise = this.germinateInstance.fetchEndpoint(endpoint, 'POST', body);
+  if (trace) {
+    dLog(fnName, 'serverURL', this.host, 'POST', {endpoint, body});
+  }
+  const dataP = promise
+    .then(response => {
+      dLog(fnName, response);
+      /* dataMatrix array may be large, so possibly .metadata will be required by caller */
+      return response?.metadata ? response.result : response;
+    });
+ 
+  return dataP;
+}
+
+
 //------------------------------------------------------------------------------
 
 export {
@@ -232,6 +297,7 @@ export {
 }
 
 //------------------------------------------------------------------------------
+//==============================================================================
 
 /** based on api-server-germinate.js : getDatasets() and viewDatasetP()
  */
@@ -268,8 +334,13 @@ export { viewDatasetBlocksBrapiGenotypeP }
 function viewDatasetBlocksBrapiGenotypeP(dataset) {
   const
   fnName = 'viewDatasetBlocksBrapiGenotypeP',
+  apiServers = this.get('apiServers'),
   promise = this.references([dataset.id])
     .then(response => blocksFn.apply(this, [dataset.store, dataset, response.result.data]))
+    .then(blocks => {
+        apiServers.incrementProperty('datasetsBlocksRefresh');
+        apiServers.trigger('receivedDatasets', [dataset]);
+    })
     .catch(error => dLog(fnName, error));
 }
 
@@ -293,11 +364,13 @@ function blocksFn(store, dataset, references) {
     // chrMap = this.chrMapping?.findBy('0', name),
     /*chrMap?.[1] ||*/ 
     scope = chrPrefix ? name.replace(chrPrefix, '') : name,
+    _meta = {brapi : {reference}},
     blockAttributes = {
       datasetId : dataset, //.id,
-      name : scope,
+      name, // : scope,
       id : dataset.id + '_' + name,
       scope,
+      _meta,
     },
     /** Block object / record */
     block = store.createRecord('block', blockAttributes);
@@ -374,3 +447,65 @@ function viewDatasetBrapiGenotypeP(store, resultDataset) {
   });
   return datasetP;
 }
+
+//==============================================================================
+
+import { useGerminate } from './germinate-genotype.js';
+
+export { brapiGenotypeSamples };
+/** Get the list of samples for datasetId.
+ * @return promise yielding samples[]
+ */
+function brapiGenotypeSamples(datasetId) {
+  /** based on extract from germinate-genotype.js : germinateGenotypeSamples(),
+   * changed from @param cb to @return promise
+   */
+  const
+  promise =
+  /*useGerminate()
+    .then(germinate => )*/
+  this.samples([datasetId]);
+  return promise;
+}
+
+export { brapiGenotypeAllelematrix };
+/** Get the allelematrix for dataset, positionRanges.
+ * @param block of BrAPI dataset
+ * Has ._meta.germinate.variantSetDbId
+ * block.get('datasetId.samples') is defined - it is used to translate
+ * sampleNames to sampleDbIds.
+ * @param interval [start, end]
+ * @param sampleNames [sampleName, ...]
+ * @return promise yielding allelematrix[]
+ */
+function brapiGenotypeAllelematrix(block, interval, sampleNames) {
+  /** based on extract from germinate-genotype.js : germinateGenotypeAllelematrix(),
+   * changed from @param cb to @return promise
+   */
+  const
+  dataset = block.get('datasetId'),
+  variantSetDbId = dataset.get('_meta.germinate.variantSetDbId'),
+  datasetId = dataset.get('id'),
+  referenceName = block.get('_meta.brapi.reference.referenceName'),
+  /** maybe @param positionRanges [[start, end], ...] */
+  positionRanges = Array.isArray(interval) ? referenceName + ':' + interval.join('-') : interval,
+  sampleNamesArray = Array.isArray(sampleNames) ? sampleNames : sampleNames.split('\n'),
+  /** lookup sampleDbId from sampleName in dataset.samples */
+  /** or @param sampleDbIds [sampleDbId, ...] */
+  // -  choose dataset.samples[0] if ! sampleNamesArray.length
+  samples = dataset.get('samples').filter(sample => sampleNamesArray.includes(sample.sampleName)),
+  sampleDbIds = samples.mapBy('sampleDbId'),
+  requestData = {
+    callSetDbIds: sampleDbIds, // [datasetId],
+    variantSetDbId,
+    positionRanges : [positionRanges],
+    dataMatrixAbbreviations: ['GT'],
+  },
+  promise =
+    this.allelematrix(requestData);
+  return promise;
+}
+
+
+
+//==============================================================================
