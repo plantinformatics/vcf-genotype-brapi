@@ -1,3 +1,5 @@
+import { pick } from 'lodash/object.js';
+
 // import { get as Ember_get, set as Ember_set } from '@ember/object';
 /*
 function Ember_get(object, fieldName) { return object[fieldName]; }
@@ -23,6 +25,9 @@ const trace = 1;
 
 /** number of columns in the vcf output before the first sample column. */
 const nColumnsBeforeSamples = 9;
+
+/** Copied from components/panel/manage-genotype.js */
+const callRateSymbol = Symbol.for('callRate');
 
 //------------------------------------------------------------------------------
 
@@ -636,6 +641,10 @@ function featureMergeOrCreate(store, block, feature) {
     feature.blockId = block;
     // Replace Ember.Object() with models/feature.
     feature = store.createRecord('feature', feature);
+    const server = block.server;
+    if (! feature.value) {
+      brapiGetVariantPosition(server, feature);
+    }
   }
   return feature;
 }
@@ -744,16 +753,21 @@ function addFeaturesBrapi(block, requestFormat, replaceResults, selectedService,
 
     let position;
     let match;
-    if ((match = variantDbId.match(/(.+)_(.+)/))) {
+    /** BrAPI is different to the other 2 flows - it requires an extra lookup
+     * (POST /search/variants/) for position of variants which are returned in
+     * data.variantDbIds
+     */
+    const usePositionFromName = false;
+    if (usePositionFromName && (match = variantDbId.match(/(.+)_(.+)/))) {
       const
       [wholeString, database_scaffoldNumber, scaffoldOffsetText] = match;
       position = +scaffoldOffsetText;
+      if (isNaN(position)) {
+        position = 0;
+      }
+      f.value_0 = position;
+      f.value = [position];
     }
-    if (isNaN(position)) {
-      position = 0;
-    }
-    f.value_0 = position;
-    f.value = [position];
 
     let feature = f;
 
@@ -773,6 +787,41 @@ function addFeaturesBrapi(block, requestFormat, replaceResults, selectedService,
   return result;
 }
 
+// export { brapiGetVariantPosition }
+function brapiGetVariantPosition(server, feature) {
+  const
+  fnName = 'brapiGetVariantPosition',
+  variantDbId = feature.id,
+  variantsP = server.variants([variantDbId]).then(data => {
+    const
+    /** data is response.result.data[] */
+    d = data[0],
+    values = feature.values,
+    info = d.additionalInfo;
+    feature.value = [+d.start];
+    feature.value_0 = feature.value[0];
+    if (d.end !== undefined) {
+      feature.value[1] = +d.end;
+    }
+    if (d.referenceBases) {
+      values.ref = d.referenceBases;
+    }
+    if (d.alternateBases) {
+      values.alt = d.alternateBases.join(',');
+    }
+    if (info !== undefined) {
+      values.INFO = info;
+      const
+      valuesAdd = pick(info, ['MAF', 'tSNP']);
+      Object.assign(values, valuesAdd);
+      if (info.AC && info.AN && +info.AN) {
+        feature[callRateSymbol] = +info.AC / +info.AN;
+      }
+    }
+    dLog(fnName, feature);
+  });
+  return variantsP;
+}
 
 // -----------------------------------------------------------------------------
 

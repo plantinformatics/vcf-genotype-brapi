@@ -9,7 +9,8 @@ export default [
   external: ['interval-tree-1d', '@solgenomics/brapijs', 'fetch',
     'interval-bins',
     '@ember/array',
-    '@ember/runloop'
+    '@ember/runloop',
+    'lodash/object.js',
   ],
   output: {
     name: 'vcf-genotype-brapi',
@@ -19,7 +20,8 @@ export default [
       'interval-tree-1d': 'createIntervalTree',
       '@solgenomics/brapijs': 'BrAPI',
       'fetch': 'fetch',
-      '@plantinformatics/child-process-progressive': 'childProcessProgressive'
+      '@plantinformatics/child-process-progressive': 'childProcessProgressive',
+      'lodash/object.js': 'lodash_object',
     }
   },
   plugins: [

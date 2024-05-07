@@ -210,6 +210,58 @@ function samples(studyDbIds) {
   return dataP;
 }
 
+//------------------------------------------------------------------------------
+
+export { variants }
+
+/**
+ * @param variantDbIds  array of string variantDbId
+ */
+function variants_get(variantDbIds) {
+  const fnName = 'variants';
+  const promise = new Promise((resolve, reject) => {
+    const
+    germinate = this.germinateInstance,
+    /** search_variants() redirects :
+     * "POST /search/variants -> GET /search/variants", { introduced: "v2.0",
+     * so use fetchEndpoint() instead
+     */
+    frayed = germinate.brapi_root
+    .search_variants({variantDbIds}, /*behavior*/undefined, /*useOld*/true)
+    .all(function(objects){
+      console.log(fnName, objects);
+      dataModel.variants = objects;
+      resolve(objects);
+    });
+    frayed._state.complete.catch(error => reject(error));
+  });
+  return promise;
+}
+
+
+/**
+ * @param variantDbIds  array of string variantDbId
+ * @param promise yielding sampleNames[]
+ */
+function variants(variantDbIds) {
+  // based on samples()
+  const fnName = 'variants';
+  const
+  endpoint = brapi_v + '/' + 'search/variants',
+  body =  {variantDbIds},
+  promise = this.germinateInstance.fetchEndpoint(endpoint, 'POST', body);
+  if (trace) {
+    dLog(fnName, 'serverURL', this.host, 'POST', {endpoint, body});
+  }
+  const dataP = promise
+    .then(response => {
+      dLog(fnName, response);
+      /* variants array may be large, so possibly .metadata will be required by caller */
+      return response?.metadata ? response.result.data : response;
+    });
+ 
+  return dataP;
+}
 
 //------------------------------------------------------------------------------
 
@@ -259,6 +311,7 @@ export { allelematrix }
  * or maybe { metadata, result}
  */
 function allelematrix(queryData) {
+  // based on samples()
   const fnName = 'allelematrix';
   const
   endpoint = brapi_v + '/' + 'search/allelematrix',
