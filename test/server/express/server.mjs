@@ -4,6 +4,7 @@
 //--------------------------------------
 
 import express, { json } from 'express';
+import { checkSchema } from 'express-validator';
 // console.log('express', express);
 
 import { program } from 'commander';
@@ -74,7 +75,12 @@ app.get('/api/brapi/v2/maps', maps);
 app.get('/api/brapi/v2/allelematrices', allelematrices);
 
 // POST endpoint for /allelematrix
-app.post('/allelematrix', allelematrix);
+app.post('/allelematrix', checkSchema({
+  username: {
+    errorMessage: 'Invalid username',
+    isEmail: true,
+  }
+}), allelematrix);
 
 //------------------------------------------------------------------------------
 

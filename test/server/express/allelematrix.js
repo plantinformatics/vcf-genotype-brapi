@@ -10,6 +10,7 @@ console.log('vcfGenotypeBrapi', vcfGenotypeBrapi);
 
 //------------------------------------------------------------------------------
 
+import { validationResult } from 'express-validator';
 
 /** from test_position-ranges.response.json */
 const test_position_ranges_response =
@@ -84,21 +85,29 @@ const test_position_ranges_response =
 
 export { allelematrix }
 function allelematrix(req, res) {
-  const fnName = 'allelematrix';
-  // Extract data from the request body
-  const { callSetDbIds, variantSetDbId, positionRanges, dataMatrixAbbreviations } = req.body;
 
-  console.log(fnName, 'Received data:', req.body);
+  try {
+    validationResult(req).throw();
+    const fnName = 'allelematrix';
+    // Extract data from the request body
+    const { callSetDbIds, variantSetDbId, positionRanges, dataMatrixAbbreviations } = req.body;
 
-  // Mock response data
-  const data = test_position_ranges_response;
-  const responseData = {
-    message: "Allele Matrix Data Retrieved Successfully",
-    data
-  };
+    console.log(fnName, 'Received data:', req.body);
 
-  // Send the response back to the client
-  res.json(responseData);
+    // Mock response data
+    const data = test_position_ranges_response;
+    const responseData = {
+        message: "Allele Matrix Data Retrieved Successfully",
+        data
+    };
+    
+    // Send the response back to the client
+    res.json(responseData);
+    } catch (e) {
+    res.status(400).send({ errors: e.mapped() });
+    console.log(e.mapped())
+    }
+
 };
 
 //------------------------------------------------------------------------------
