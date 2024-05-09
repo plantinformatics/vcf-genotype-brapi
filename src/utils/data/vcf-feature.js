@@ -818,7 +818,7 @@ function brapiGetVariantPosition(server, feature) {
         feature[callRateSymbol] = +info.AC / +info.AN;
       }
     }
-    dLog(fnName, feature);
+    // dLog(fnName, feature);
   });
   return variantsP;
 }

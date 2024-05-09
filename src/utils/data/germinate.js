@@ -104,6 +104,8 @@ class Germinate {
     germinateServerURL = germinateServerDomain; // + '/api';
     serverURL = germinateServerURL;
     serverURLBrAPI = germinateServerURL + '/' + brapi_v;
+    // used by login() to determine isSouthGreen, for endpoint.
+    this.serverURL = serverURL;
   }
 }
 export {Germinate};
@@ -229,6 +231,9 @@ function fetchEndpoint_fetch(endpoint, method = 'GET', body = undefined) {
   fnName = 'fetchEndpoint_fetch',
   tokenNull = ! this.token || (this.token === 'null'),
   token = this.token || 'null',
+  /** for multiple connections will need to use api-server .host in place of serverURL */
+  isSouthGreen = serverURL.includes('gigwa.ird.fr'),
+  mode = isSouthGreen ? 'no-cors' : 'cors',
   headerObj = {
         // 'User-Agent': ...,
         'Accept': '*/*',  // application/json, text/plain, 
@@ -248,7 +253,7 @@ function fetchEndpoint_fetch(endpoint, method = 'GET', body = undefined) {
       headers : /*new Headers(*/headerObj/*)*/,
       referrer : germinateServerDomain + '/', // 'http://localhost:4200/',
       method,
-      'mode': 'cors',
+      mode
     };
   if (! tokenNull) {
     headerObj.Authorization = 'Bearer ' + token;
@@ -344,7 +349,8 @@ function login(username_, password_) {
     const
     body = {username, password},
     method = 'POST',
-    endpoint = 'token';
+    isSouthGreen = this.serverURL.includes('gigwa.ird.fr'),
+    endpoint = isSouthGreen ? 'gigwa/generateToken' : 'token';
 
     if (this.token) {
       console.log(fnName, this.token);

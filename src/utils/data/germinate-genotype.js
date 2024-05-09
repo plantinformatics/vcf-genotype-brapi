@@ -33,6 +33,11 @@ function useGerminate(url, username, password, token) {
   let connectedP;
   if (! germinateInstance) {
       germinateInstance = new Germinate(url);
+  } else if (url && (url != germinateInstance.serverURL)) {
+    if (germinateInstance.serverURL) {
+      console.log(fnName, url, 'replacing', germinateInstance.serverURL);
+    }
+    germinateInstance.serverURL = url;
   }
   if (typeof token === 'string') {
     germinateInstance.setToken(token);
