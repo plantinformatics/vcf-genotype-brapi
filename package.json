@@ -40,6 +40,7 @@
     "interval-tree-1d": "^1.0.4"
   },
   "devDependencies": {
+    "rollup": "^4.14.2",
     "@rollup/plugin-alias": "^5.1.0",
     "lodash": "^4.17.21"
   }
