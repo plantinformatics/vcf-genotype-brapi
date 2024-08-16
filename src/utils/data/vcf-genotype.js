@@ -5,9 +5,9 @@ import { promisify } from 'util';
 
 
 import intervalTree1d from "interval-tree-1d";
-const { createIntervalTree } = intervalTree1d;
+const createIntervalTree = intervalTree1d;
 // import createIntervalTree from "interval-tree-1d";
-console.log('createIntervalTree', createIntervalTree);
+console.log('createIntervalTree', createIntervalTree, intervalTree1d);
 
 //------------------------------------------------------------------------------
 
@@ -28,7 +28,10 @@ const /*import*/ {
 } = childProcessProgressive.default.childProcess;
 // from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs'; // ../utilities/child-process
 
-import { binEvenLengthRound, binBoundaries } from 'interval-bins'; // ../utilities/block-features');
+import intervalBins from 'interval-bins/dist/interval-bins.mjs';
+console.log('interval-bins', intervalBins);
+const /* import*/ { binEvenLengthRound, binBoundaries } = intervalBins; // from 'interval-bins';
+
 
 //------------------------------------------------------------------------------
 
