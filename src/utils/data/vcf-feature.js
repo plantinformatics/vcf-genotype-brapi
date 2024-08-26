@@ -1,5 +1,7 @@
 import { pick } from 'lodash/object.js';
 
+import { intervalMerge } from './interval-merge.js';
+
 // import { get as Ember_get, set as Ember_set } from '@ember/object';
 /*
 function Ember_get(object, fieldName) { return object[fieldName]; }
@@ -119,6 +121,8 @@ function getDatasetFeaturesCounts(auth, datasetId, genotypeSNPFilters) {
  * @param samples to request, may be undefined or []
  * Not used if requestSamplesAll
  * @param domainInteger  [start,end] of interval, where start and end are integer values
+ * domainInteger is not applicable if scope is undefined, so this parameter is
+ * used in that case to carry {datasetVcfFiles, snpNames} from genotype-search.
  * @param requestOptions :
  * {requestFormat, requestSamplesAll, headerOnly},
  * . requestFormat 'CATG' (%TGT) or 'Numerical' (%GT for 01)
@@ -127,19 +131,26 @@ function getDatasetFeaturesCounts(auth, datasetId, genotypeSNPFilters) {
  *
  * @param vcfDatasetId  id of VCF dataset to lookup
  * @param scope chromosome, e.g. 1A, or chr1A - match %CHROM chromosome in .vcf.gz file
+ * scope===undefined signifies to search across all scopes of the dataset;
+ * in this case preArgs.region is passed undefined.
  * @param rowLimit
  */
 function vcfGenotypeLookup(auth, samples, domainInteger, requestOptions, vcfDatasetId, scope, rowLimit) {
   const
   fnName = 'vcfGenotypeLookup',
 
-  region = scope + ':' + domainInteger.join('-'),
+  region = scope && (scope + ':' + domainInteger.join('-')),
   requestFormat = requestOptions.requestFormat,
   /** this dataset has tSNP in INFO field */
   requestInfo = requestFormat && (vcfDatasetId === 'Triticum_aestivum_IWGSC_RefSeq_v1.0_vcf_data'),
   preArgs = Object.assign({
     region, samples, requestInfo
   }, requestOptions);
+  if (! scope) {
+    const searchScope = domainInteger;
+    // preArgs.datasetVcfFiles = searchScope.datasetVcfFiles;
+    preArgs.snpNames = searchScope.snpNames; // actually genotype-search.selectedFeaturesText
+  }
   /** Noted in vcfGenotypeLookup.bash : When requestOptions.isecDatasetIds is given,
    * -R is used, so -r is not given, i.e. preArgs.region is not used.
    */
@@ -212,17 +223,35 @@ scaffold38755_709316	709316	0/0	0/1	0/0	0/0	0/0	./.	0/0	0/0	0/0	0/1	0/0	0/0	0/0	
 /** Parse VCF output and add features to block.
  * @return
  *  { createdFeatures : array of created Features,
- *    sampleNames : array of sample names }
+ *    sampleNames : array of sample names,
+ *    resultBlocks : blocks of the result rows, in the case of [genotype-search], otherwise undefined
+ *  }
  *
  * @param block view dataset block for corresponding scope (chromosome)
+ * In the case of [genotype-search] all scopes (chromosomes) of the dataset are searched,
+ * and block is dataset
  * @param requestFormat 'CATG', 'Numerical', ...
  * @param replaceResults  true means remove previous results for this block from block.features[] and selectedFeatures.
  * @param selectedService if defined then update selectedFeatures
  * @param text result from bcftools request
  */
 function addFeaturesJson(block, requestFormat, replaceResults, selectedService, text) {
+  /** true if block is given; otherwise determine block of each row, from CHROM column. */
+  const blockGiven = block.constructor.modelName === 'block';
+  /** If ! blockGiven, collate the blocks of the result rows. */
+  const resultBlocks = blockGiven ? undefined : new Map();
+  let dataset;
+  if (! blockGiven) {
+    if (block.constructor.modelName !== 'dataset') {
+      dLog(fnName, blockGiven, block.constructor.modelName, block?.id);
+    } else {
+      dataset = block;
+      block = undefined;
+    }
+  }
+
   const fnName = 'addFeaturesJson';
-  dLog(fnName, block.id, block.mapName, text.length);
+  dLog(fnName, blockGiven, block?.id, block?.mapName, text.length);
   /** optional : add fileformat, FILTER, phasing, INFO, FORMAT to block meta
    * read #CHROM or '# [1]ID' column headers as feature field names
    * parse /^[^#]/ (chr) lines into features, add to block
@@ -246,7 +275,10 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
     lines.splice(-1, 1);
   }
 
-  if (replaceResults) {
+  /* If block is not given, could remove its feature and selected features when it is seen in the results.
+   * i.e. factor this to a function and call it when a new block is seen in the results.
+   */
+  if (replaceResults && blockGiven) {
     if (selectedService) {
       const selectedFeatures = selectedService.selectedFeatures;
       // let mapChrName = Ember_get(block, 'brushName');
@@ -290,7 +322,7 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
       // from columnNames.slice(0,9), appended tSNP.
       const nonSampleFields = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'tSNP'];
       columnIsGT = columnNames.map(c => nonSampleFields.includes(c));
-    } else if (l.startsWith('# [1]ID') || l.startsWith('#[1]ID')) {
+    } else if (l.startsWith('# [1]') || l.startsWith('#[1]')) { // expect ID or CHROM
       // Column header row output by bcftools query
       // # [1]ID	[2]POS	[3]ExomeCapture-DAS5-002978:GT	[4]ExomeCapture-DAS5-003024:GT	[5]ExomeCapture-DAS5-003047:GT	[6]ExomeC
       /* between versions 1.9 and 1.19 of bcftools, this changed '# [1]ID' to '#[1]ID'
@@ -305,9 +337,11 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
         .split(/\t\[[0-9]+\]/);
       columnNames[0] = columnNames[0].replace(/^# ?\[1\]/, '');
       columnNames = columnNameINFOFix(columnNames);
-      // nColumnsBeforeSamples is 2 in this case : skip ID, POS.
-      sampleNames = columnNames.slice(2);
+      // nColumnsBeforeSamples is 2 or 3 in this case : skip (CHROM,) ID, POS.
+      const posColumn = columnNames.indexOf('POS');
+      sampleNames = columnNames.slice(posColumn + 1);
       // skip the (null) / INFO column name
+      // (2 for REF, ALT)
       sampleNames.splice(2, 1);
     } else if (columnNames && l.length) {
       const values = l.split('\t');
@@ -326,7 +360,13 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
          */
         switch (fieldName) {
         case 'CHROM' :
+          // Update required : now Block.name may be e.g. 'Chr1A' - can compare value with .name instead of trimming off /^chr/.
           let scope = value.replace(/^chr/, '');
+          if (! blockGiven) {
+            block = dataset.blocks.findBy('name', value);
+            resultBlocks.has(block) || resultBlocks.set(block, []);
+            value = block;
+          } else
           if (scope !== block.scope) {
             dLog(fnName, value, scope, block.scope, fieldName, i);
             value = null;
@@ -402,10 +442,10 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
             /* These will not be needed after changing references to e.g.
              * feature.values.MAF to feature.values.INFO.MAF, which is
              * equivalent and replaces it. */
-            if (value.MAF) {
+            if (value.MAF !== undefined) {
               f.values.MAF = value.MAF;
             }
-            if (value.tSNP) {
+            if (value.tSNP !== undefined) {
               f.values.tSNP = value.tSNP;
             }
 
@@ -416,6 +456,11 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
         return f;
       }, {});
       // or EmberObject.create({value : []});
+
+      if (! blockGiven) {
+        const featuresDomain = resultBlocks.get(block);
+        intervalMerge(featuresDomain, feature.value);
+      }
 
       /* CHROM column is present in default format, and omitted when -f is used
        * i.e. 'CATG', 'Numerical', so in this case set .blockId here. */
@@ -466,14 +511,14 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
          */
         feature.id = block.id + '_' + feature._name + '_' + feature.value[0];
         feature.id = feature.id.replace('.', '_');
-        let existingFeature = store.peekRecord('feature', feature.id);
+        let existingFeature = store.peekRecord('Feature', feature.id);
         if (existingFeature) {
           mergeFeatureValues(existingFeature, feature);
           feature = existingFeature;
           // this is included in createdFeatures, since it is a result from the current request.
         } else {
           // Replace Ember.Object() with models/feature.
-          feature = store.createRecord('feature', feature);
+          feature = store.createRecord('Feature', feature);
           /** fb is a Proxy */
           let fb = feature.get('blockId');
           if (fb.then) {
@@ -501,15 +546,19 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
 
     }
   });
+  /* in the case of [genotype-search], this is just the block of the last row.
+   * -  collate blocks and update each
+   */
+  if (block) {
   blockEnsureFeatureCount(block);
   block.addFeaturePositions(createdFeatures);
-
+  }
 
   if (! columnNames || ! sampleNames) {
     dLog(fnName, lines.length, text.length);
   }
 
-  let result = {createdFeatures, sampleNames};
+  let result = {createdFeatures, sampleNames, resultBlocks};
   return result;
 }
 
