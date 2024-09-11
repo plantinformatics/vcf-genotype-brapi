@@ -1,6 +1,6 @@
 {
   "name": "@plantinformatics/vcf-genotype-brapi",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Client and server functions to access genotype data from VCF via a custom web API and BrAPI",
   "main": "main.node.mjs",
   "module": "main.mjs",
@@ -33,13 +33,13 @@
   "author": "AgriBio / Don Isdale",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "rollup": "^4.14.2",
     "@rollup/plugin-alias": "^5.1.0",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@solgenomics/brapijs": "^2.0.3",
     "ember-cli": "^5.8.0",
-    "interval-tree-1d": "^1.0.4"
+    "interval-tree-1d": "^1.0.4",
+    "rollup": "^4.14.2"
   },
   "devDependencies": {
     "lodash": "^4.17.21"
