@@ -33,11 +33,13 @@
   "author": "AgriBio / Don Isdale",
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "@plantinformatics/child-process-progressive": "github:plantinformatics/child-process-progressive",
     "@rollup/plugin-alias": "^5.1.0",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@solgenomics/brapijs": "^2.0.3",
     "ember-cli": "^5.8.0",
+    "interval-bins": "github:plantinformatics/interval-bins",
     "interval-tree-1d": "^1.0.4",
     "rollup": "^4.14.2"
   },
