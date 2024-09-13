@@ -511,14 +511,14 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
          */
         feature.id = block.id + '_' + feature._name + '_' + feature.value[0];
         feature.id = feature.id.replace('.', '_');
-        let existingFeature = store.peekRecord('Feature', feature.id);
+        let existingFeature = store.peekRecord('feature', feature.id);
         if (existingFeature) {
           mergeFeatureValues(existingFeature, feature);
           feature = existingFeature;
           // this is included in createdFeatures, since it is a result from the current request.
         } else {
           // Replace Ember.Object() with models/feature.
-          feature = store.createRecord('Feature', feature);
+          feature = store.createRecord('feature', feature);
           /** fb is a Proxy */
           let fb = feature.get('blockId');
           if (fb.then) {
