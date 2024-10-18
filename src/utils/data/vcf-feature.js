@@ -364,8 +364,12 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
           let scope = value.replace(/^chr/, '');
           if (! blockGiven) {
             block = dataset.blocks.findBy('name', value);
-            resultBlocks.has(block) || resultBlocks.set(block, []);
-            value = block;
+            if (! block) {
+              dLog(fnName, i, value, 'not in', dataset.blocks.mapBy('name'), dataset.blocks.mapBy('scope'));
+            } else {
+              resultBlocks.has(block) || resultBlocks.set(block, []);
+              value = block;
+            }
           } else
           if (scope !== block.scope) {
             dLog(fnName, value, scope, block.scope, fieldName, i);
@@ -457,7 +461,7 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
       }, {});
       // or EmberObject.create({value : []});
 
-      if (! blockGiven) {
+      if (! blockGiven && block) {
         const featuresDomain = resultBlocks.get(block);
         intervalMerge(featuresDomain, feature.value);
       }
@@ -538,8 +542,9 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
          * existingFeature.
          */
         createdFeatures.push(feature);
+        // block may be undefined if CHROM is not in dataset.blocks[]
         // If existingFeature then addObject(feature) is a no-op.
-        if (replaceResults || ! existingFeature) {
+        if (block && (replaceResults || ! existingFeature)) {
           block.features.addObject(feature);
         }
       }
