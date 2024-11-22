@@ -101,7 +101,7 @@ class Germinate {
     this.init();
 
     germinateServerDomain = germinateServerDomain_;
-    germinateServerURL = germinateServerDomain; // + '/api';
+    germinateServerURL = germinateServerDomain + '/api';
     serverURL = germinateServerURL;
     serverURLBrAPI = germinateServerURL + '/' + brapi_v;
     // used by login() to determine isSouthGreen, for endpoint.

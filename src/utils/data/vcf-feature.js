@@ -763,7 +763,7 @@ export { resultIsBrapi }
  * Related : resultIsGerminate().
  */
 function resultIsBrapi(data) {
-  return typeof data === 'object';
+  return ! resultIsGerminate(data) && (typeof data === 'object');
 }
 
 export { addFeaturesBrapi }
