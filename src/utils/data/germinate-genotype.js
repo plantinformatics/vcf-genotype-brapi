@@ -141,8 +141,9 @@ function germinateGenotypeLookup(datasetId, scope, preArgs, nLines, undefined, c
     if (match) {
       [all, start, end] = match;
     }
+    console.log(fnName, 'samples', typeof samples, Array.isArray(samples) ? samples.slice(0,5) : samples.slice(0,50));
     const
-    sampleNames = preArgs.samples.split('\n'),
+    sampleNames = Array.isArray(samples) ? samples : samples.split('\n'),
     samplesDataP = sampleNames.map(sampleName => {
       // e.g. '1-593'
       const
