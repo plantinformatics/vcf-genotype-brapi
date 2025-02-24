@@ -3,13 +3,14 @@
 // const util = {promisify}; // require('util');
 import { promisify } from 'util';
 
-
 import intervalTree1d from "interval-tree-1d";
 const createIntervalTree = intervalTree1d;
 // import createIntervalTree from "interval-tree-1d";
 console.log('createIntervalTree', createIntervalTree, intervalTree1d);
 
 //------------------------------------------------------------------------------
+
+import { parseStringFields } from './parseStringFields';
 
 import * as childProcessProgressive from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs';
 console.log('childProcessProgressive', childProcessProgressive);
@@ -23,7 +24,7 @@ function stringCountString() { }
 */
 
 const /*import*/ {
-  childProcess, dataOutReplyClosureLimit, dataReduceClosure,
+  childProcess, dataOutReplyClosureLimit, dataOutReplyClosure, dataReduceClosure,
   stringCountString,
 } = childProcessProgressive.default.childProcess;
 // from '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs'; // ../utilities/child-process
@@ -35,6 +36,129 @@ const /* import*/ { binEvenLengthRound, binBoundaries } = intervalBins; // from 
 
 //------------------------------------------------------------------------------
 
+function callOut(command, datasetId, scope, preArgs, cb) {
+  childProcess(
+    'vcfGenotypeLookup.bash',
+    /* postData */ '', 
+    /* useFile */ false,
+    /* fileName */ undefined,
+    /* moreParams */ [command, datasetId, scope, /*isecFlags*/ '', /*isecDatasetIds*/''].concat(preArgs || []),
+    dataOutReplyClosure(cb), cb, /*progressive*/ false);
+}
+const callOutP = promisify(callOut);
+
+
+/** Request samples, filtered by genotype values at selected SNPs, i.e. filter by required haplotype
+ * handle multiple SNPs :
+ *  group SNPs by feature Symbol matchRef into alt and ref; for both issue a samples request with filter
+ * sample is OK if it is in all results, i.e. appears once for each SNP
+ *  (allow some number of missing : filter.allowMissing)
+ *
+ * @param datasetId  name of parent or view dataset, or vcf directory name
+ * @param scope e.g. '1A'; identifies the vcf file, i.e. datasetId/scope.vcf.gz
+ * @param filter optional filter e.g. haplotype
+ * {features : array of SNP {position, matchRef}, allowMissing : true/false }
+ * The caller will place the feature which filters out the most samples first,
+ * and this will be used in the first request.
+ * @return promise yielding array of sample names
+ */
+export { vcfGenotypeSamplesFiltered }
+function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
+  const fnName = 'vcfGenotypeSamplesFiltered';
+  /** result */
+  let promise;
+
+  if (filter) {
+    filter.features.forEach(f => parseStringFields(f, ['position', 'matchRef']));
+    /** The purpose of allowing the caller to nominate the first SNP to filter
+     * on, by listing it first, is that the 2nd query can be limited to the
+     * result of the first, i.e. filteredSamples;  see comment below.  */
+    const refFirst = filter.features[0].matchRef;
+    /** array of feature positions. index is matchRef, i.e. [0] is Alt, [1] is Ref */
+    const groupedFilters = filter.features.reduce((grouped, feature) => {
+      grouped[feature.matchRef].push(feature.position);
+      return grouped;
+    }, {true : [], false : []});
+    const first = groupedFilters[refFirst];
+    /** @return regexp to be used by grep. '.' will match | / etc */
+    function refToGenotype(matchRef) { return matchRef ? '0.0' : '1.1'; }
+    function groupCall(group, matchRef) {
+      const
+      /** GT= is recognised by vcfGenotypeLookup.bash to set gtMatch.
+       * similar to --include 'GT="1/1"' but that filters SNPs not samples. */
+      include = 'GT=' + refToGenotype(matchRef),
+      regions = group.map(position => scope + ':' + position).join(','),
+      preArgs = ['-r'].concat(regions).concat([include]),
+      p = callOutP('filter_samples', datasetId, scope, preArgs);
+      console.log(fnName, preArgs.join(' '));
+      return p;
+    }
+    const counts = {};
+    function countSamples(a) {
+      a.forEach(s => {
+        if (counts[s] == undefined) {
+          counts[s] = 1;
+        } else {
+          counts[s]++;
+        }
+      });
+    }
+    /** Number of SNPs queried so far; filter requires counts to match this. */
+    let nSNPs = first.length;
+    function query(group, matchRef) {
+      const
+      promise =
+        groupCall(group, matchRef)
+        .then(samplesValues => {
+          //  samplesValues.replaceAll(/\t.../g, '');
+          // trim off trailing newline and split on intermediate newlines.
+          /** Sample names which matched in the first query.  */
+          const matchedSamples = samplesValues.trim().split(/\t...\n/g);
+          /*  count and filter for those with count === #SNPs in first query */
+          countSamples(matchedSamples);
+          /* first.length is the number of SNPs in the first query,
+           * i.e. groupedFilters[refFirst] */
+          // next : >= nSNPs - allowMissing
+          const filteredSamples = matchedSamples.filter(s => counts[s] === nSNPs);
+          console.log(fnName, filteredSamples.length, nSNPs, matchedSamples.length);
+          return filteredSamples;
+      });
+      return promise;
+    }
+    /** Map the array of sample names to the result format of the existing
+     * genotypeSamples endpoint. */
+    function samplesToResult(samples) {
+      return samples.join('\n');
+    }
+    promise =
+      query(first, refFirst)
+      .then(firstSamples =>  {
+        /** if filteredSamples.length < 100 it might be a good optimisation to
+         * narrow the 2nd query to filteredSamples. See comment re. refFirst. */
+        const
+        secondMatch = ! refFirst,
+        second = groupedFilters[secondMatch];
+        nSNPs += second.length;
+        let result;
+        if (! second.length) {
+          result = samplesToResult(firstSamples);
+        } else {
+          result = query(second, secondMatch)
+            .then(samples => samplesToResult(samples));
+        }
+        return result;
+      });
+  } else {
+    //     -l, --list-samples: list sample names and exit
+    promise = callOutP('query', datasetId, scope, /*preArgs*/ ['-l']);
+  }
+
+  return promise;
+}
+
+
+
+//------------------------------------------------------------------------------
 
 /**
  * @param datasetDir  name of directory containing the VCF dataset
