@@ -116,11 +116,14 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
           const matchedSamples = samplesValues.trim().split(/\t...\n/g);
           /*  count and filter for those with count === #SNPs in first query */
           countSamples(matchedSamples);
+          /** Sample names will appear multiple times, once for each SNP genotype which they match.
+           * Array.from(new Set( )) preserves order, which is preferable for GUI consistency. */
+          const uniqSamples = Array.from(new Set(matchedSamples));
           /* first.length is the number of SNPs in the first query,
            * i.e. groupedFilters[refFirst] */
           // next : >= nSNPs - allowMissing
-          const filteredSamples = matchedSamples.filter(s => counts[s] === nSNPs);
-          console.log(fnName, filteredSamples.length, nSNPs, matchedSamples.length);
+          const filteredSamples = uniqSamples.filter(s => counts[s] === nSNPs);
+          console.log(fnName, filteredSamples.length, nSNPs, uniqSamples.length, matchedSamples.length);
           return filteredSamples;
       });
       return promise;
