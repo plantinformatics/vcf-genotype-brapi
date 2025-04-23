@@ -111,9 +111,14 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
         groupCall(group, matchRef)
         .then(samplesValues => {
           //  samplesValues.replaceAll(/\t.../g, '');
-          // trim off trailing newline and split on intermediate newlines.
+          /* split on (tab genotype newline), then
+           * trim off the '' created from trailing (... newline).
+           */
           /** Sample names which matched in the first query.  */
-          const matchedSamples = samplesValues.trim().split(/\t...\n/g);
+          const matchedSamples = samplesValues.split(/\t...\n/g);
+          if (matchedSamples.at(-1) === '') {
+            matchedSamples.pop();
+          }
           /*  count and filter for those with count === #SNPs in first query */
           countSamples(matchedSamples);
           /** Sample names will appear multiple times, once for each SNP genotype which they match.
