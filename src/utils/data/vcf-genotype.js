@@ -165,6 +165,49 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
 }
 
 
+//------------------------------------------------------------------------------
+
+/** Given a list of selected SNPs, request the list of unique haplotype values
+ * across those positions.
+ * The output includes the count and list of samples which have each haplotype value.
+ *
+ * @param datasetId  name of parent or view dataset, or vcf directory name
+ * @param scope e.g. '1A'; identifies the vcf file, i.e. datasetId/scope.vcf.gz
+ * @param positions required array of positions of selected SNPs
+ *
+ * @return promise yielding array of sample names
+ */
+export { vcfGenotypeHaplotypesSamples }
+function vcfGenotypeHaplotypesSamples(datasetId, scope, positions) {
+  const fnName = 'vcfGenotypeHaplotypesSamples';
+
+  /** The positions are received as strings, and can be used in that form;
+   * JSON.parse() sanitises the values somewhat. */
+  positions = positions.map(p => JSON.parse(p));
+
+  function positionsCall(positions) {
+    /** Extract from vcfGenotypeSamplesFiltered() : groupCall, with group -> positions */
+    const
+    regions = positions.map(position => scope + ':' + position).join(','),
+    preArgs = ['-r'].concat(regions),
+    p = callOutP('haplotypes_samples', datasetId, scope, preArgs);
+    console.log(fnName, preArgs.join(' '));
+    return p;
+  }
+
+  /** If handling multiple Blocks (chromosomes) of a dataset then this might use
+   * 1 call per chr and combine results. (related : vcfGenotypeSamplesFiltered()
+   * combines results from multiple calls).
+   *
+   * Also, this function could get the list of sample names and map the sample
+   * numbers in the result to names, but that is easily done in the frontend,
+   * which keeps the reply small.
+   */
+  const promise = positionsCall(positions);
+
+  return promise;
+}
+
 
 //------------------------------------------------------------------------------
 
