@@ -57,7 +57,7 @@ const callOutP = promisify(callOut);
  * @param datasetId  name of parent or view dataset, or vcf directory name
  * @param scope e.g. '1A'; identifies the vcf file, i.e. datasetId/scope.vcf.gz
  * @param filter optional filter e.g. haplotype
- * {features : array of SNP {position, matchRef}, allowMissing : true/false }
+ * {features : array of SNP {position, matchRef}, matchHet : true/false, allowMissing : not yet defined or used }
  * The caller will place the feature which filters out the most samples first,
  * and this will be used in the first request.
  * @return promise yielding array of sample names
@@ -69,6 +69,7 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
   let promise;
 
   if (filter) {
+    const matchHet = filter.matchHet;
     filter.features.forEach(f => parseStringFields(f, ['position', 'matchRef']));
     /** The purpose of allowing the caller to nominate the first SNP to filter
      * on, by listing it first, is that the 2nd query can be limited to the
@@ -81,12 +82,21 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
     }, {true : [], false : []});
     const first = groupedFilters[refFirst];
     /** @return regexp to be used by grep. '.' will match | / etc */
-    function refToGenotype(matchRef) { return matchRef ? '0.0' : '1.1'; }
+    function refToGenotype(matchRef, matchHet) {
+      const
+      /** map {false,true} -> {1,0} */
+      value = + ! matchRef,
+      /** vcfGenotypeLookup.bash uses pattern as gtMatch in : '\t'"$gtMatch"'$' */
+      pattern = matchHet ?
+        '.*' + value + '.*' :
+        value + '.' + value;
+      return pattern;
+    }
     function groupCall(group, matchRef) {
       const
       /** GT= is recognised by vcfGenotypeLookup.bash to set gtMatch.
        * similar to --include 'GT="1/1"' but that filters SNPs not samples. */
-      include = 'GT=' + refToGenotype(matchRef),
+      include = 'GT=' + refToGenotype(matchRef, matchHet),
       regions = group.map(position => scope + ':' + position).join(','),
       preArgs = ['-r'].concat(regions).concat([include]),
       p = callOutP('filter_samples', datasetId, scope, preArgs);
