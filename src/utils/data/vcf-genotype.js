@@ -69,6 +69,7 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
   let promise;
 
   if (filter) {
+    parseStringFields(filter, ['matchHet']);
     const matchHet = filter.matchHet;
     filter.features.forEach(f => parseStringFields(f, ['position', 'matchRef']));
     /** The purpose of allowing the caller to nominate the first SNP to filter
