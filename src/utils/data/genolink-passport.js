@@ -10,6 +10,7 @@
  * @typedef {Object} PassportDataQuery
  * @property {Array<string>} [accessionNumbers] - An array of accession numbers.
  * @property {Array<string>} [genotypeIds] - An array of genotype IDs.
+ * @property {Array<string>} [selectFields] - An array of Passport data field names; possible values are in passportFieldNames[].
  */
 
 /**
@@ -18,11 +19,18 @@
  * @param {PassportDataQuery} query - Query parameters.
  * @param {Array<string>} [query.accessionNumbers] - An array of accession numbers.
  * @param {Array<string>} [query.genotypeIds] - An array of genotype IDs.
+ * @param {Array<string>} [query.selectFields] - An array of Passport data field names.
+ * If not provided, the default is to request all passport data, i.e. all fields.
  * @param {string} baseUrl - The base URL of the API (e.g., "https://genolink.plantinformatics.io").
  * @returns {Promise<any>} - Resolves with the JSON response from the API.
  */
-export async function getPassportData({ accessionNumbers = [], genotypeIds = [] }, baseUrl) {
-  const url = new URL("/api/genesys/accession/query", baseUrl);
+export async function getPassportData({ accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl) {
+  let url = new URL("/api/genesys/accession/query", baseUrl);
+
+  // If any selectFields are defined, pass them as query params in the URL.
+  if (selectFields.length) {
+    url += '?select=' + selectFields.join(',');
+  }
 
   // Prepare the request payload. Only include keys that have values.
   const payload = {};
@@ -115,3 +123,35 @@ export async function getPassportDataByGenotypeIds(genotypeIds, baseUrl) {
 //     console.error(err);
 //   }
 // })();
+
+//------------------------------------------------------------------------------
+
+export const passportFieldNames = [
+  "instituteCode",
+  "accessionNumber",
+  "institute.fullName",
+  "taxonomy.taxonName",
+  "cropName",
+  "countryOfOrigin.name",
+  "lastModifiedDate",
+  "acquisitionDate",
+  "doi",
+  "institute.id",
+  "accessionName",
+  "institute.owner.name",
+  "genus",
+  "taxonomy.grinTaxonomySpecies.speciesName",
+  "taxonomy.grinTaxonomySpecies.name",
+  "crop.name",
+  "taxonomy.grinTaxonomySpecies.id",
+  "taxonomy.grinTaxonomySpecies.name",
+  "uuid",
+  "institute.owner.lastModifiedDate",
+  "institute.owner.createdDate",
+  "aliases",
+  "donorName",
+  "donorCode",
+  "sampStat",
+];
+
+//------------------------------------------------------------------------------
