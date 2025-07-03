@@ -56,7 +56,7 @@ export async function getPassportData({ accessionNumbers = [], genotypeIds = [],
     }
     return await response.json();
   } catch (error) {
-    console.error("Error in getPassportData:", error);
+    console.error("Error in getPassportData:", error.message, url, payload, error);
     throw error;
   }
 }
