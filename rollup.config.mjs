@@ -1,6 +1,8 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import alias from '@rollup/plugin-alias';
+import json from '@rollup/plugin-json';
+
 
 export default [
 {
@@ -13,9 +15,10 @@ export default [
     'lodash/object.js',
   ],
   output: {
-    name: 'vcf-genotype-brapi',
-    file: 'dist/vcf-genotype-brapi.js',
-    format: 'umd',
+    dir: 'dist', // Changed from 'file' to 'dir'
+    format: 'esm',
+    entryFileNames: 'vcf-genotype-brapi.js', // Specify the entry file name
+    chunkFileNames: '[name]-[hash].js', // Handle chunk file names if applicable
     globals: {
       'interval-tree-1d': 'createIntervalTree',
       '@solgenomics/brapijs': 'BrAPI',
@@ -25,6 +28,7 @@ export default [
     }
   },
   plugins: [
+    json(),
     alias({
       entries: [
         { find: 'vcf-genotype-brapi-browser', replacement: 'vcf-genotype-brapi/dist/vcf-genotype-brapi.js' }
@@ -37,16 +41,17 @@ export default [
   external: [
     'util',
     'interval-tree-1d',
+    'flat-cache',
     '@plantinformatics/child-process-progressive',	// not effective
     '@plantinformatics/child-process-progressive/dist/child-process-progressive.mjs',
     'interval-bins'],
 
   output: {
-    name: 'vcf-genotype-brapi-node',
-    file: 'dist/vcf-genotype-brapi-node.mjs',
+    dir: 'dist', // Changed from 'file' to 'dir'
     format: 'esm',
+    entryFileNames: 'vcf-genotype-brapi-node.mjs', // Specify the entry file name
   },
-  plugins: [commonjs(), resolve()]
+  plugins: [commonjs(), resolve(), json(), ]
 }
 
 ];

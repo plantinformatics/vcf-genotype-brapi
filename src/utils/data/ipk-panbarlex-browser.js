@@ -1,3 +1,11 @@
+
+
+//------------------------------------------------------------------------------
+
+/** Base of web API endpoint URLs of IPK PanBARLEX
+ */
+const baseUrl = 'https://panbarlex.ipk-gatersleben.de';
+
 //------------------------------------------------------------------------------
 
 /**
@@ -32,7 +40,7 @@
 export async function fetchDotPlotData(intervals) {
   const
   fnName = 'fetchDotPlotData',
-  url = "https://panbarlex.ipk-gatersleben.de/assemblies/dotplot",
+  url = baseUrl + '/assemblies/dotplot',
   entries = intervals.slice(0, 2)
     .map((interval, i) => [["1st", "2nd"][i] , interval]),
   params = Object.fromEntries(entries),
@@ -106,5 +114,3 @@ async function getDotPlot() {
 
 
 //------------------------------------------------------------------------------
-
-
