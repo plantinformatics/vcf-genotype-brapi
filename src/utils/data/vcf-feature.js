@@ -503,9 +503,11 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
             }
           });
         }
-        if (feature._name) {
-          feature._name = datasetId2Class(feature._name);
-        }
+        /* Previously sanitized feature._name using datasetId2Class(), but it is
+         * desired to retain the '.' which may appear in SNP names in VCF files.
+         * Before use DOM element id / class, they are sanitized via
+         * eltClassName() in axisFeatureCircles_eltId().
+         */
 
         // .id is used by axisFeatureCircles_eltId().
         // ._name may be also added to other blocks.
@@ -514,7 +516,6 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
          *  (existingFeature.get('value.0') !== feature.value[0])
          */
         feature.id = block.id + '_' + feature._name + '_' + feature.value[0];
-        feature.id = feature.id.replace('.', '_');
         let existingFeature = store.peekRecord('feature', feature.id);
         if (existingFeature) {
           mergeFeatureValues(existingFeature, feature);
