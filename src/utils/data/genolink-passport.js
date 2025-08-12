@@ -16,6 +16,30 @@
 /**
  * Fetch passport data from the Genesys API.
  *
+ * Update : some of the given accessionNumbers or genotypeIds may not be present
+ * in database. These will be omitted from the response.
+ * To handle this :
+ *
+ * - "accessionNumber" should be added to selectFields if not present, to enable
+ *  the Genolink backend to map accessions to their corresponding genotype IDs.
+ *  It should be filtered out of the output if it was not present in
+ *  selectFields.
+ *
+ * - genotypeID is added to the output, and should be filtered out of the output
+ *
+ * - for genotypeIds (or accessionNumbers) which are not in the output, add an
+ *   object with an empty string for each of selectFields.
+ *
+ * There is an example of this in the header comment of the following function,
+ * which performs those output filtering steps, @see fillInMissingData().
+ *
+ * Looking at the 2 uses of this function :
+ * - datasetGetPassportData() (manage-genotype.js) does not require filter
+ *   "accessionNumber" and "genotypeID" to be filtered out of the output.
+ * - selectedSamplesGetPassport() (genotype-samples.js) will output those fields
+ *   if they are not filtered out, but in some cases including genotypeID may be
+ *   desired.
+ *
  * @param {PassportDataQuery} query - Query parameters.
  * @param {Array<string>} [query.accessionNumbers] - An array of accession numbers.
  * @param {Array<string>} [query.genotypeIds] - An array of genotype IDs.
@@ -27,9 +51,15 @@
 export async function getPassportData({ accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl) {
   let url = new URL("/api/genesys/accession/query", baseUrl);
 
+  const
+  /** selectFields === [] means all fields are selected. */
+  accessionNumberAdded = selectFields.length && !selectFields.includes("accessionNumber"),
+  selectFieldsAN = accessionNumberAdded ? 
+    selectFields.concat("accessionNumber") : selectFields;
+
   // If any selectFields are defined, pass them as query params in the URL.
-  if (selectFields.length) {
-    url += '?select=' + selectFields.join(',');
+  if (selectFieldsAN.length) {
+    url += '?select=' + selectFieldsAN.join(',');
   }
 
   // Prepare the request payload. Only include keys that have values.
@@ -54,11 +84,122 @@ export async function getPassportData({ accessionNumbers = [], genotypeIds = [],
     if (!response.ok) {
       throw new Error(`Error fetching passport data: ${response.status} ${response.statusText}`);
     }
-    return await response.json();
+
+    return await response.json()
+      .then(data => fillInMissingData(accessionNumbers, genotypeIds, selectFields, selectFieldsAN, accessionNumberAdded, data));
   } catch (error) {
     console.error("Error in getPassportData:", error.message, url, payload, error);
     throw error;
   }
+}
+
+/** Filter the output of getPassportData(), to fill in missing data.
+ *
+ * The first 3 parameters are the same as getPassportData().
+ * @param {Array<string>} accessionNumbers - An array of accession numbers.
+ * @param {Array<string>} genotypeIds - An array of genotype IDs.
+ * @param {Array<string>} selectFields - An array of Passport data field names.
+ * If not provided, the default is to request all passport data, i.e. all fields.
+ *
+ * @param {Array<string>} selectFields - An array of Passport data field names.
+ * This is the same as selectFields if selectFields includes or implies "accessionNumber";
+ * otherwise it is a copy of selectFields, with "accessionNumber" appended.
+ *
+ * @param {object} data	response from API request.
+ *
+ * ---
+ * Example :
+
+selectFields : [ "accessionNumber", "countryOfOrigin.codeNum" ]
+
+input :
+```json
+{
+  "genotypeIds": ["AGG240WHEA2-B00003-1-09", "AGG5259WHEA1-B00003-1-06",
+  "AGG_missing_data_ID"]
+}
+```
+
+API response:
+```json
+{
+    "content": [
+        {
+            "accessionNumber": "AGG 240 WHEA",
+            "countryOfOrigin.codeNum": "380",
+            "genotypeID": "AGG240WHEA2-B00003-1-09"
+        },
+        {
+            "accessionNumber": "AGG 5259 WHEA",
+            "countryOfOrigin.codeNum": "364",
+            "genotypeID": "AGG5259WHEA1-B00003-1-06"
+        }
+    ],
+}
+```
+
+desired output : 
+```json
+[
+        {
+            "accessionNumber": "AGG 240 WHEA",
+            "countryOfOrigin.codeNum": "380"
+        },
+        {
+            "accessionNumber": "AGG 5259 WHEA",
+            "countryOfOrigin.codeNum": "364"
+        },
+        {
+            "accessionNumber": "",
+            "countryOfOrigin.codeNum": ""
+        },
+    ],
+
+ */
+function fillInMissingData(accessionNumbers, genotypeIds, selectFields, selectFieldsAN, accessionNumberAdded, data) {
+  // set up test case
+  // genotypeIds.push("missingDataKeyId");
+  const
+  fnName = 'fillInMissingData',
+  /** One of accessionNumbers and genotypeIds is [], and the other is an array
+   * of ID strings.
+   * Notice that the capitalisation of the query 'genotypeIds' is different to the
+   * field name in the response 'genotypeID'.
+   */
+  keyName = accessionNumbers?.length ? "accessionNumber" : "genotypeID",
+  /** Convert the output data.content[] to a map to enable it to be converted to
+   * a parallel array.
+   */
+  map = data.content.reduce((m, d) => {
+    const
+    key = d[keyName],
+    /** As commented in getPassportData(), filtering out "genotypeID",
+     * "accessionNumber" may not be required.
+     */
+    filterOut = false,
+    {genotypeID, accessionNumber, ...rest} = d;
+    m[key] = filterOut ? rest : d;
+    if (filterOut && ! accessionNumberAdded) {
+      rest.accessionNumber = accessionNumber;
+    }
+    return m;
+  }, {}),
+  keys = accessionNumbers?.length ? accessionNumbers : genotypeIds,
+  /** If a key does not have a response, create an empty response with a field
+   * for each of selectFields. */
+  parallel = keys.map(key =>
+    map[key] ||
+      Object.fromEntries(selectFields.map(s => [s, '']))  );
+  /*
+  console.log(
+    fnName, accessionNumbers, genotypeIds, selectFields,
+    accessionNumberAdded, data, keyName, map, keys, parallel);
+    */
+  /** From the original response only .content is used; if other parts are
+   * needed then it can be copied with :
+   *   Object.assign(Object.assign({}, data), {content : parallel})
+   */
+  return {content : parallel};
 }
 
 /**
