@@ -1,3 +1,7 @@
+import { chunk } from 'lodash/array.js';
+
+// import { mapInSeries } from './promises'; // .js
+
 /**
  * @file genolink-passport.js
  * 
@@ -47,8 +51,28 @@
  * If not provided, the default is to request all passport data, i.e. all fields.
  * @param {string} baseUrl - The base URL of the API (e.g., "https://genolink.plantinformatics.io").
  * @returns {Promise<any>} - Resolves with the JSON response from the API.
+ * Update : {Array<Promise<any>>}
  */
-export async function getPassportData({ accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl) {
+export function getPassportData({accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl) {
+  const
+  accessionNumbersIsKey = accessionNumbers.length > 0,
+  keyName = accessionNumbersIsKey ? 'accessionNumbers' : 'genotypeIds',
+  keys = accessionNumbersIsKey ? accessionNumbers : genotypeIds,
+  /** default page size of Genolink
+   * By using (<=) 100, it is not necessary to use &p= &l=
+   */
+  pageLength = 100,
+  chunks = chunk(keys, pageLength),
+  elt2PromiseFn = (keyschunk, i) => getPassportDataChunk({[keyName] : keyschunk, selectFields}, baseUrl, i, pageLength),
+  response = chunks.map(elt2PromiseFn);
+  // or mapInSeries(keys, elt2PromiseFn)
+
+  // caller e.g. : [].concat(responses);
+
+  return response;
+}
+export async function getPassportDataChunk({ accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl, page, pageLength) {
+
   let url = new URL("/api/genesys/accession/query", baseUrl);
 
   const
@@ -60,6 +84,8 @@ export async function getPassportData({ accessionNumbers = [], genotypeIds = [],
   // If any selectFields are defined, pass them as query params in the URL.
   if (selectFieldsAN.length) {
     url += '?select=' + selectFieldsAN.join(',');
+    // Probably required iff the full list of keys is sent in each request.
+    // + '&p=' + page + '&l=' + pageLength;
   }
 
   // Prepare the request payload. Only include keys that have values.
@@ -198,8 +224,10 @@ function fillInMissingData(accessionNumbers, genotypeIds, selectFields, selectFi
   /** From the original response only .content is used; if other parts are
    * needed then it can be copied with :
    *   Object.assign(Object.assign({}, data), {content : parallel})
+   * Update : return just the array, to enable easier concat() of chunks;
+   * currently no field other than .content is required.
    */
-  return {content : parallel};
+  return parallel; // {content : };
 }
 
 /**

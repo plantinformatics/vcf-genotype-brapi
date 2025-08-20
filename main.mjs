@@ -22,6 +22,7 @@ import * as genolinkPassport  from './src/utils/data/genolink-passport.js';
  * so ipk-panbarlex.js is split into ipk-panbarlex-browser.js and ipk-panbarlex-server.js.
  */
 import * as ipkPanbarlexBrowser from './src/utils/data/ipk-panbarlex-browser.js';
+import * as ipkPanbarlexServer from './src/utils/data/ipk-panbarlex-server.js';
 import * as brapiGenotype     from './src/utils/data/brapi-genotype.js';
 import * as germinateGenotype from './src/utils/data/germinate-genotype.js';
 import * as germinate         from './src/utils/data/germinate.js';
@@ -34,9 +35,16 @@ import * as apiRequest        from './src/utils/data/api-request.js'
 */
 import * as cacheBrowser      from './src/utils/data/cache-browser.js';
 export default {
-  vcfFeature, genolinkPassport, ipkPanbarlexBrowser, brapiGenotype, germinateGenotype,
-  germinate, promisify,
-  /*apiRequest,*/ cacheBrowser,
+  vcfFeature,
+  genolinkPassport,
+  ipkPanbarlexBrowser,
+  ipkPanbarlexServer,
+  brapiGenotype,
+  germinateGenotype,
+  germinate,
+  promisify,
+  /*apiRequest,*/
+  cacheBrowser,
 };
 
 //------------------------------------------------------------------------------
