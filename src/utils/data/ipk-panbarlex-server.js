@@ -1,8 +1,15 @@
 //------------------------------------------------------------------------------
 
-import { apiRequest } from './api-request.js';
+/** Instead of importing the dependencies apiRequest (which depends on either
+ * fetch or node-fetch) and cache (which may be cache-node or cache-browser),
+ * which makes this module difficult to package for both browser and Node.js,
+ * require the caller to pass those dependencies in via init().
+ */
+
+//import { apiRequest } from './api-request.js';
 // const { apiRequest } = require('./api-request.js');
 
+// omit .js when building this file in frontend web app
 import { mapInSeries } from './promises.js';
 /*
 let mapInSeries;
@@ -19,7 +26,8 @@ import('@plantinformatics/vcf-genotype-brapi/dist/vcf-genotype-brapi-node.mjs').
 
 /** Base of web API endpoint URLs of IPK PanBARLEX
  */
-const baseUrl = 'https://panbarlex.ipk-gatersleben.de';
+export const domainIpk = 'ipk-gatersleben.de';
+const baseUrl = 'https://panbarlex.' + domainIpk;
 
 //------------------------------------------------------------------------------
 
@@ -43,12 +51,61 @@ if (isNodeJs) {
 }
 */
 // Node.js
- import { CacheWrapper }  from './cache-node.js';
+// import { CacheWrapper }  from './cache-node.js';
 // const { CacheWrapper } = require('./cache-node');
 // web-browser
 // import { CacheWrapper } from './cache-browser.js';
 
-cache = new CacheWrapper('IPK', 'PanBARLEX');
+//------------------------------------------------------------------------------
+
+/** console.debug is now defined also in isNodeJs */
+const dLog = console.debug || console.log;
+
+//------------------------------------------------------------------------------
+
+/** There are distinct cache implementations used :
+ *  - cache-node.js backend Node.js 
+ *  - cache-browser.js frontend browser
+ * These have the same signature `CacheWrapper`, so this library can use either
+ * via this abstract interface.
+ * Packaging both of these for frontend and backend is currently problematic, so
+ * instead require the calling app to pass in the implementation to be used.
+ *
+ * @param {CacheWrapper} cacheWrapper
+ */
+export function init(cacheWrapper, fetch_) {
+  cache = new cacheWrapper('IPK', 'PanBARLEX');
+  fetch = fetch_;
+}
+
+//------------------------------------------------------------------------------
+
+/** Lookup key in the response cache; if present return it, otherwise fetch(url)
+ * and store the response in cache.
+ * @param {string} url
+ * @param {string} key
+ * @return {Promise<string>} response, from cache or API
+ */
+export function fromCacheOrFetch(url, key) {
+  const
+  fnName = 'fromCacheOrFetch',
+  responseP = cache?.get(key)
+    .then(response => {
+      // This indicates if cache hit or miss.
+      console.log(fnName, key, !!response, response?.length || response?.clusterMembers?.length);
+      if (response) {
+        return response;
+      } else {
+        /** promise yielding API response */
+        const
+        apiP = fetch(url)
+          .then(response => response.json())
+          .then(response => (cache?.set(key, response), response));
+        return apiP;
+      }
+    });
+  return responseP;
+}
 
 //------------------------------------------------------------------------------
 
@@ -56,7 +113,7 @@ cache = new CacheWrapper('IPK', 'PanBARLEX');
  * https://panbarlex.ipk-gatersleben.de/#known-genes
  * From index.js.
  */
-const clusterIds = [
+export const clusterIds = [
   /** duplicates : BarleyCDS90_21807, BarleyCDS90_06263 */
   'BarleyCDS90_26655',
   'BarleyCDS90_11894',
@@ -170,24 +227,24 @@ export /*async*/ function getKnownGenes() {
   const
   fnName = 'getKnownGenes',
   responses = [],
+  /** Option to send requests in series instead of parallel, to reduce peak
+   * server load. */
+  inSeries = true,
+  allP = inSeries ? mapInSeries(clusterIds, getGene) :
+    Promise.all(clusterIds.map(getGene));
+
+  return allP;
+}
 
   /** Request data for a gene cluster, which includes the projections to
    * reference assemblies.
    *
-   * Changed from using reduceInSeries() to mapInSeries() because the latter is
-   * simpler for this case, and will drop the reduceInSeries() comments after commit.
-   * reduceInSeries() passes this additional parameter previousClusterResponse:
-   * @param  {Object} previousClusterResponse result of promise which has just resolved,
-   * i.e. response for previous clusterId in array.
    * @param {string} clusterId	gene cluster id to request projections for.
    * @return {Promise<Object>}	response data
    */
-  getOneP = async (/*previousClusterResponse,*/ clusterId) => {
-    /** for reduceInSeries(), there is no previous value in the first call, i.e. i=0.
-    if (previousClusterResponse) {
-      responses.push(previousClusterResponse);
-    }
-    */
+export async function getGene(clusterId) {
+  const fnName = 'getGene';
+    /** Usage with reduceInSeries() instead of mapInSeries() is recorded in comments in 0eced61. */
     const
     key = 'sequence_clusters/' + clusterId,
     url = baseUrl + '/' + key;
@@ -195,15 +252,96 @@ export /*async*/ function getKnownGenes() {
     console.log(fnName, clusterId, !!response, response?.clusterMembers?.length);
     if (! response) {
       /** promise yields response */
-      response = await apiRequest(url)
+      response = await fetch(url)
+        .then(response => response.json())
         .then(response => (cache?.set(key, response), response));
     }
     return response;
-  },
-  /*lastP = reduceInSeries(clusterIds, getOneP),
-  allP = lastP.then(response => (responses.push(response), responses));*/
-  allP = mapInSeries(clusterIds, getOneP);
-  return allP;
+  }
+
+
+//------------------------------------------------------------------------------
+
+/** Extract attributes from the response to /sequence_clusters/
+ * to be loaded in Pretzel as a Feature.
+ * @param {object} gene	result of /sequence_clusters/<clusterId>
+ * @return {object} Feature to be pushed to store
+ */
+export function geneToFeature(gene) {
+  const
+  fnName = 'geneToFeature',
+  {clusterMembers, genes, samples, ...feature} = gene,
+  proj = clusterMembers.findBy('sampleId', 'MOREX');
+  if (proj.genes.length !== 1) {
+    console.log(fnName, proj.genes);
+  }
+  if (proj.genes.length) {
+    const g = proj.genes[0].feature;
+    feature.blockId = g.seqid; // blockNames.find(g.seqid);
+    feature.value = [g.start, g.end];
+    feature._id = g.featureId;
+  }
+  feature.name = feature.descriptions.join(', '); // clusterId;
+  return feature;
 }
 
 //------------------------------------------------------------------------------
+
+/** Example of the part of the result of /configuration which is used by getChromosomes()
+ */
+const configurationExampleResponse = {
+  "..." : "...",
+  chromosomes: [
+    {
+      id: 'chr1H',
+      label: '1H',
+      centromere_position: 206486643,
+      start: 121,
+      end: 516504168,
+      number_of_variants: 16516763
+    },
+    "..."
+  ]
+};
+/** Get the chromosome names and sizes for referenceAssemblyName.
+ * @param {string} referenceAssemblyName	sampleId, e.g. 'Morex'
+ * @return {Promise<Array<object>>} promise yielding array of /contig_length/ results
+ */
+export function getChromosomes(referenceAssemblyName) {
+  const
+  key = 'configuration',
+  requestURL = 'https://divbrowse.' + domainIpk + '/barley_pangenome_v2/' + key,
+  chrsP = fromCacheOrFetch(requestURL, key).then(configuration => 
+    /** configuration contains [start,end] of 1 assembly, so if
+     * referenceAssemblyName matches that then contig_length is not
+     * required.  */
+    Promise.all(configuration.chromosomes.map(
+      chr => getcontig_length(referenceAssemblyName, chr.id) )));
+  return chrsP;
+}
+
+/** Get contig_length of contigId (chromosome) for referenceAssemblyName.
+ * @param {string} referenceAssemblyName	sampleId, e.g. 'Morex'
+ * @param {string} contigId	e.g. 'chr6H'
+ * @return {Promise<object>} promise yielding a /contig_length/ result
+ */
+export function getcontig_length(referenceAssemblyName, contigId) {
+  const
+  queryParameters = {
+    sampleId : referenceAssemblyName,
+    contigId,
+  },
+  /** e.g. 'sampleId=Morex&contigId=chr6H' */
+  paramsText = Object.entries(queryParameters)
+    .map(keyValuePair => keyValuePair.join('='))
+    .join('&'),
+  key = 'contig_length?' + paramsText,
+  requestURL = baseUrl + '/' + key,
+  responseP = fromCacheOrFetch(requestURL, key);
+  //    {"sampleId":"Morex","contigId":"chr6H","length":561794515}
+
+  return responseP;
+}
+
+//------------------------------------------------------------------------------
+
