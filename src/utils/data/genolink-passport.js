@@ -296,6 +296,12 @@ export async function getPassportDataByGenotypeIds(genotypeIds, baseUrl) {
 //------------------------------------------------------------------------------
 
 export const passportFieldNames = [
+  // Genolink data fields
+  "region",
+  "subRegion",
+  // "status",
+
+  // Genesys passport data fields
   "accessionName",
   "accessionNumber",
   "acquisitionDate",
@@ -316,7 +322,6 @@ export const passportFieldNames = [
   "lastModifiedDate",
   "sampStat",
   "taxonomy.grinTaxonomySpecies.id",
-  "taxonomy.grinTaxonomySpecies.name",
   "taxonomy.grinTaxonomySpecies.name",
   "taxonomy.grinTaxonomySpecies.speciesName",
   "taxonomy.taxonName",
