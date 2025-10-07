@@ -295,6 +295,10 @@ export async function getPassportDataByGenotypeIds(genotypeIds, baseUrl) {
 
 //------------------------------------------------------------------------------
 
+/** Names of Genolink / Genesys Passport data fields.
+ * These values are used in the genolink request :
+ *   /api/genesys/accession/query?select=...
+ */
 export const passportFieldNames = [
   // Genolink data fields
   "region",
@@ -326,6 +330,21 @@ export const passportFieldNames = [
   "taxonomy.grinTaxonomySpecies.speciesName",
   "taxonomy.taxonName",
   "uuid",
+];
+
+/** A subset of passportFieldNames[], listing just those fields whose values are
+ * expected to be in a small set which will fit reasonably in a pull-down <select>.
+ */
+export const passportFieldNamesCategory = [
+  "region",
+  "subRegion",
+
+  "countryOfOrigin.name",
+  "crop.name",
+  "cropName",
+
+  "genus",
+
 ];
 
 //------------------------------------------------------------------------------
