@@ -2,6 +2,10 @@ import { chunk } from 'lodash/array.js';
 
 // import { mapInSeries } from './promises'; // .js
 
+//------------------------------------------------------------------------------
+const dLog = console.debug;
+//------------------------------------------------------------------------------
+
 /**
  * @file genolink-passport.js
  * 
@@ -14,6 +18,7 @@ import { chunk } from 'lodash/array.js';
  * @typedef {Object} PassportDataQuery
  * @property {Array<string>} [accessionNumbers] - An array of accession numbers.
  * @property {Array<string>} [genotypeIds] - An array of genotype IDs.
+ * @property {<string>} _text - A text string to search for.
  * @property {Array<string>} [selectFields] - An array of Passport data field names; possible values are in passportFieldNames[].
  */
 
@@ -49,11 +54,15 @@ import { chunk } from 'lodash/array.js';
  * @param {Array<string>} [query.genotypeIds] - An array of genotype IDs.
  * @param {Array<string>} [query.selectFields] - An array of Passport data field names.
  * If not provided, the default is to request all passport data, i.e. all fields.
+ * @param {string} query._text	optional text string to search for.
+ * If provided, then neither of {accessionNumbers, genotypeIds} are required.
+ * @param {number} query.page	optional, only used if _text
  * @param {string} baseUrl - The base URL of the API (e.g., "https://genolink.plantinformatics.io").
  * @returns {Promise<any>} - Resolves with the JSON response from the API.
  * Update : {Array<Promise<any>>}
  */
-export function getPassportData({accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl) {
+export function getPassportData(
+  {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, page }, baseUrl) {
   const
   accessionNumbersIsKey = accessionNumbers.length > 0,
   keyName = accessionNumbersIsKey ? 'accessionNumbers' : 'genotypeIds',
@@ -64,32 +73,51 @@ export function getPassportData({accessionNumbers = [], genotypeIds = [], select
   pageLength = 100,
   chunks = chunk(keys, pageLength),
   elt2PromiseFn = (keyschunk, i) => getPassportDataChunk({[keyName] : keyschunk, selectFields}, baseUrl, i, pageLength),
-  response = chunks.map(elt2PromiseFn);
+  /** array of promises; just 1 if ! chunks.length. */
+  response = chunks.length ?
+    chunks.map(elt2PromiseFn) :
+    [getPassportDataChunk({_text, selectFields}, baseUrl, page, pageLength)];
   // or mapInSeries(keys, elt2PromiseFn)
 
   // caller e.g. : [].concat(responses);
 
   return response;
 }
-export async function getPassportDataChunk({ accessionNumbers = [], genotypeIds = [], selectFields = [] }, baseUrl, page, pageLength) {
+export async function getPassportDataChunk(
+  { accessionNumbers = [], genotypeIds = [], selectFields = [], _text },
+  baseUrl, page, pageLength) {
 
   let url = new URL("/api/genesys/accession/query", baseUrl);
 
   const
+  fnName = 'getPassportDataChunk',
   /** selectFields === [] means all fields are selected. */
   accessionNumberAdded = selectFields.length && !selectFields.includes("accessionNumber"),
   selectFieldsAN = accessionNumberAdded ? 
     selectFields.concat("accessionNumber") : selectFields;
 
+  const queryParams = [];
+  const payload = {};
   // If any selectFields are defined, pass them as query params in the URL.
+  // encodeURIComponent() is not needed because field names are alphabetic [A-Za-z.].
   if (selectFieldsAN.length) {
-    url += '?select=' + selectFieldsAN.join(',');
+    queryParams.push('select=' + selectFieldsAN.join(','));
     // Probably required iff the full list of keys is sent in each request.
     // + '&p=' + page + '&l=' + pageLength;
   }
+  if (_text ?? false) {
+    payload._text = _text;
+    if (page ?? false) {
+      queryParams.push('p=' + page);
+    }
+  }
+  // pageLength is not passed if it is the default (100).
+  if ((pageLength ?? false) && (pageLength !== 100)) {
+    queryParams.push('l=' + pageLength);
+  }
+  url += '?' + queryParams.join('&');
 
   // Prepare the request payload. Only include keys that have values.
-  const payload = {};
   if (accessionNumbers.length > 0) {
     payload.accessionNumbers = accessionNumbers;
   }
@@ -107,12 +135,12 @@ export async function getPassportDataChunk({ accessionNumbers = [], genotypeIds 
 
   try {
     const response = await fetch(url.toString(), options);
+    dLog(fnName, response.ok, response.json, response);
     if (!response.ok) {
       throw new Error(`Error fetching passport data: ${response.status} ${response.statusText}`);
     }
-
     return await response.json()
-      .then(data => fillInMissingData(accessionNumbers, genotypeIds, selectFields, selectFieldsAN, accessionNumberAdded, data));
+      .then(data => fillInMissingData(accessionNumbers, genotypeIds, _text, selectFields, selectFieldsAN, accessionNumberAdded, data));
   } catch (error) {
     console.error("Error in getPassportData:", error.message, url, payload, error);
     throw error;
@@ -182,7 +210,10 @@ desired output :
     ],
 
  */
-function fillInMissingData(accessionNumbers, genotypeIds, selectFields, selectFieldsAN, accessionNumberAdded, data) {
+function fillInMissingData(accessionNumbers, genotypeIds, _text, selectFields, selectFieldsAN, accessionNumberAdded, data) {
+  if (_text && ! accessionNumbers?.length && ! genotypeIds.length) {
+    accessionNumbers = data.content.mapBy('accessionNumber');
+  }
   // set up test case
   // genotypeIds.push("missingDataKeyId");
   const
