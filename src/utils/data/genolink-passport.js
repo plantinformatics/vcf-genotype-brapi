@@ -3,7 +3,28 @@ import { chunk } from 'lodash/array.js';
 // import { mapInSeries } from './promises'; // .js
 
 //------------------------------------------------------------------------------
+
+/* global URL */
+
+//------------------------------------------------------------------------------
 const dLog = console.debug;
+//------------------------------------------------------------------------------
+
+/** In the passport data rows there are 2 name / identity fields :
+ * .  accessionNumber
+ * .  genotypeID
+ * The equivalent POST data fields of the /query endpoint are named :
+ * . accessionNumbers
+ * . genotypeIds
+ * The same names are used for passing as parameters to getPassportData{,Chunk}().
+ *
+ * This object provides a mapping to rename from the field names to the parameter 
+ */
+export const fieldName2ParamName = {
+  genotypeID: 'genotypeIds',
+  accessionNumber : 'accessionNumbers'
+};
+
 //------------------------------------------------------------------------------
 
 /**
@@ -377,5 +398,74 @@ export const passportFieldNamesCategory = [
   "genus",
 
 ];
+
+//------------------------------------------------------------------------------
+
+/**
+ * Translate accessionNumbers to genotypeIds via a request to the Genesys API.
+ *
+ * @param {Array<string>} accessionNumbers - An array of accession numbers.
+ * @returns {Promise<any>} - Resolves with the JSON response from the API.
+ * ---
+ * @desc
+ *
+ * Note that in the response the Sample field is the genotypeId.
+ *
+ * Example :
+ * . input parameter : accessionNumbers : ["AGG 37829 WHEA"]
+ * . API response:
+```json
+{
+    "Samples": [
+        {
+            "Accession": "AGG 37829 WHEA",
+            "Sample": "AGG37829WHEA2-B00004-7-48"
+        }
+    ]
+}
+```
+
+ */
+export async function accessionNumbers2genotypeIds(accessionNumbers, baseUrl) {
+  let url = new URL("/api/internalApi/mapAccessionToGenotypeId", baseUrl);
+  const
+  fnName = 'accessionNumbers2genotypeIds',
+  payload = {};
+
+  // Prepare the request payload. Only include keys that have values.
+  if (accessionNumbers.length > 0) {
+    payload.Accessions = accessionNumbers;
+  }
+
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  };
+
+  try {
+    const response = await fetch(url.toString(), options);
+    dLog(fnName, response.ok, response.json, response);
+    if (!response.ok) {
+      if (response.status === 404) {
+        /* All of accessionNumbers have no genotypeID.
+         * They can be filtered out of subsequent calls to accessionNumbers2genotypeIds().
+         */
+        dLog(fnName, response.status, accessionNumbers);
+        return {Samples : []};
+      } else {
+        throw new Error(`Error in ${fnName}: ${response.status} ${response.statusText}`);
+      }
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error in ', fnName, error.message, url, payload, error);
+    throw error;
+  }
+}
+
+
 
 //------------------------------------------------------------------------------
