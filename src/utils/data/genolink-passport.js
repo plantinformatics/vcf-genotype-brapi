@@ -78,20 +78,22 @@ export const fieldName2ParamName = {
  * @param {string} query._text	optional text string to search for.
  * If provided, then neither of {accessionNumbers, genotypeIds} are required.
  * @param {number} query.page	optional, only used if _text
+ * @param {number} query.pageLength	optional, default 100.
+ *
  * @param {string} baseUrl - The base URL of the API (e.g., "https://genolink.plantinformatics.io").
  * @returns {Promise<any>} - Resolves with the JSON response from the API.
  * Update : {Array<Promise<any>>}
  */
 export function getPassportData(
-  {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, page }, baseUrl) {
+  {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, page, pageLength = 100 }, baseUrl) {
+  /** default page size of Genolink
+   * By using (<=) 100, it is not necessary to use &p= &l=
+  pageLength = 100,
+   */
   const
   accessionNumbersIsKey = accessionNumbers.length > 0,
   keyName = accessionNumbersIsKey ? 'accessionNumbers' : 'genotypeIds',
   keys = accessionNumbersIsKey ? accessionNumbers : genotypeIds,
-  /** default page size of Genolink
-   * By using (<=) 100, it is not necessary to use &p= &l=
-   */
-  pageLength = 100,
   chunks = chunk(keys, pageLength),
   elt2PromiseFn = (keyschunk, i) => getPassportDataChunk({[keyName] : keyschunk, selectFields}, baseUrl, i, pageLength),
   /** array of promises; just 1 if ! chunks.length. */
@@ -353,6 +355,7 @@ export async function getPassportDataByGenotypeIds(genotypeIds, baseUrl) {
  */
 export const passportFieldNames = [
   // Genolink data fields
+  // These cannot be searched with /query?_text=
   "region",
   "subRegion",
   // "status",
