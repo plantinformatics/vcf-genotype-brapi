@@ -471,4 +471,98 @@ export async function accessionNumbers2genotypeIds(accessionNumbers, baseUrl) {
 
 
 
+//--------------------------------------------------------------------------------
+
+
+/** Result of missingCells(), passed to requestMissingCells().
+ * Used to collate ids which have missing data for the same field names and
+ * can be requested together.
+ * This is the value type of requestCache; the key is this.key(this.missingFields).
+ */
+export class FieldsRows {
+  constructor(missingFields) {
+    this.missingFields = missingFields;
+    this.ids = [];
+  }
+  /** @return a text key to group ids by the fields which they require data for. */
+  static key(missingFields) {
+    return missingFields.sort().join(',');
+  }
+  /** @return a text string to identify a request by its parameters,
+   * enabling duplicate requests to be detected. */
+  get requestKey() {
+    const
+    /** .ids.length is expected to be 500 - 10000, and the order may be consistent,
+     * so .ids.sort() may not enhance performance. */
+    text = FieldsRows.key(this.missingFields) + ':' + this.ids.length + '_' +
+      this.ids/*.sort()*/.join(',');
+    return text;
+  }
+}
+
+
+/** Scan rows for missing cells.
+ * @param rows	tableData
+ * @param {Array<string>} [selectFields] - An array of Passport data field names for which data is required.
+ * @return [key] => {missingFields, ids : []}
+ * where key is a text form of missingFields (sorted to recognise uniqueness, for grouping),
+ * missingFields is an array of string field names,
+ * and ids is an array of string genotypeIDs which are missing those fields.
+ */
+export function missingCells(rows, selectFields) {
+  const
+  fnName = 'missingCells',
+  /** Determine the missing fields on each row, and for each unique group of
+   * missing fields, collate the list of samples / accessions / genotypeIDs
+   * which are missing that group of field names.
+   * {Array{missingFields, ids}} field name groups, and the rows in which that
+   * group is missing. */
+  missing = rows.reduce(
+    (result, row) => {
+      const
+      /** missing fields in row */
+      missingFields = selectFields.filter(f => !row[f] || row[f] === '_');
+      if (missingFields.length)
+      {
+        const
+        key = FieldsRows.key(missingFields),
+        request = result[key] || (result[key] = new FieldsRows(missingFields));
+        request.ids.push(row.genotypeID);
+      };
+      return result;
+    },
+    {});
+  return missing;
+}
+/** Request Passport data for the given rows and field names.
+ * The request will redisplay the table, showing the received values.
+ * This may be called a number of times in a short interval, so use
+ * requestCache to detect if a request is already sent.
+ * @param {object} requestCache	cache of promises of requests sent, to handle repeated calls.
+ * @param {object} missing	result of .missingCells(), mapping FieldsRows.key() to FieldsRows.
+ * @param {function} getNamedRows	(ids, fieldNames) -> promise
+ * @return {Array<Promise|undefined>} promises	where each promise is :
+ * - undefined if no request is sent, i.e. there is already a
+ * current request for these parameters.
+ * - otherwise a promise yielding the result of datasetGetPassportData().
+ */
+export function requestMissingCells(requestCache, missing, getNamedRows) {
+  const
+  fnName = 'requestMissingCells',
+  promises = Object.values(missing).map(m => {
+    let promise;
+    const
+    {missingFields, ids} = m,
+    key = m.requestKey;
+    dLog(fnName, FieldsRows.key(missingFields), ids, !!requestCache[key]);
+    if (! requestCache[key]) {
+      promise = requestCache[key] = getNamedRows(ids, missingFields);
+      promise.finally(() => delete requestCache[key]);
+    }
+    return promise;
+  });
+  return promises;
+}
+
+
 //------------------------------------------------------------------------------
