@@ -349,6 +349,15 @@ export async function getPassportDataByGenotypeIds(genotypeIds, baseUrl) {
 
 //------------------------------------------------------------------------------
 
+/** Genolink data fields
+ * These cannot be searched with /query?_text=
+ */
+export const genolinkFieldNames = [
+  "genotypeID",
+  "region",
+  "subRegion",
+];
+
 /** Names of Genolink / Genesys Passport data fields.
  * These values are used in the genolink request :
  *   /api/genesys/accession/query?select=...
