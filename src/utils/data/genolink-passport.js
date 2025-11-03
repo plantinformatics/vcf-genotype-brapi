@@ -27,6 +27,107 @@ export const fieldName2ParamName = {
 
 //------------------------------------------------------------------------------
 
+/* This class provides a mapping required from field names listed in
+ * passportFieldNames (many with '.') to the field names in /query body,  e.g.
+ * - crop.name -> crop
+ * - instituteCode -> institute : { code 
+ * - acquisitionDate ? -> createdDate
+ * - countryOfOrigin.name -> countryOfOrigin : { code3
+ * - genus -> taxonomy: { genus
+ *
+ * As other filters are added, the following will need to preserve those
+ * not being changed.
+ */
+export class PassportFilter {
+  static className = 'PassportFilter';
+
+  get empty() {
+    const
+    values = Object.values(this),
+    /** filter values are arrays, apart from createdDate */
+    empty =
+      (values.length === 0) ||
+      ! values.find(v =>
+        (Array.isArray(v) && v.length) ||
+          ((typeof v === 'object') && Object.keys(v).length));
+    return empty;
+  }
+
+  /** Set up a filter if required (i.e. value is not empty);
+   * update the filter if already created.
+   * @param container	object to hold 'filter' property : new PassportFilter()
+   * @param key	id of filterable field, i.e. member of passportFieldNamesFilterable[]
+   * @param value	array of strings to search for
+   */
+  static update(container, key, value) {
+    let filter = container.filter;
+    if (value?.length && ! filter) {
+      filter = container.filter = new PassportFilter();
+    }
+    if (filter) {
+      filter[key] = value;
+    }
+  }
+
+  set_(key, value) {
+    if (key === 'crop.name') {
+      if (value?.length) {
+        this.currentSearch.filter = {crop : value};
+      } else {
+        delete this.currentSearch.filter;
+      }
+    }
+  }
+  /** Translate the filters defined in `this` to the form required in API
+   * endpoint /query body.
+   */
+  get body() {
+    const
+    fnName = 'body',
+    body = Object.entries(this).reduce((b, [key, value]) => {
+      switch (key) {
+
+      case 'crop.name' :
+        if (value?.length) {
+          b.crop = value.map(crop => cropPretzel2Genesys[crop] || crop);
+        }
+        break;
+
+      case 'instituteCode' :
+        if (value?.length) {
+          b.institute = {code : value};
+        }
+        break;
+
+      case 'countryOfOrigin.name' :
+        if (value?.length) {
+          b.countryOfOrigin = {code3 : value};
+        }
+        break;
+
+      case 'genus' :
+        if (value?.length) {
+          b.taxonomy = {genus : value};
+        }
+        break;
+
+      default:
+        dLog(PassportFilter.className, fnName, 'key', key, 'not implemented');
+        break;
+      }
+      return b;
+    }, {});
+    dLog(PassportFilter.className, fnName, body, this, JSON.stringify(body), JSON.stringify(this));
+    return body;
+  }
+
+}
+
+// currentSearch.changeCount
+// this.currentSearch
+
+//------------------------------------------------------------------------------
+
 /**
  * @file genolink-passport.js
  * 
@@ -77,6 +178,7 @@ export const fieldName2ParamName = {
  * If not provided, the default is to request all passport data, i.e. all fields.
  * @param {string} query._text	optional text string to search for.
  * If provided, then neither of {accessionNumbers, genotypeIds} are required.
+ * @param {string} query.filter	optional filter such as {"crop": ["groundnuts", "lentil"]}
  * @param {number} query.page	optional, only used if _text
  * @param {number} query.pageLength	optional, default 100.
  *
@@ -85,7 +187,8 @@ export const fieldName2ParamName = {
  * Update : {Array<Promise<any>>}
  */
 export function getPassportData(
-  {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, page, pageLength = 100 }, baseUrl) {
+  {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, filter,
+   page, pageLength = 100 }, baseUrl) {
   /** default page size of Genolink
    * By using (<=) 100, it is not necessary to use &p= &l=
   pageLength = 100,
@@ -99,7 +202,7 @@ export function getPassportData(
   /** array of promises; just 1 if ! chunks.length. */
   response = chunks.length ?
     chunks.map(elt2PromiseFn) :
-    [getPassportDataChunk({_text, selectFields}, baseUrl, page, pageLength)];
+    [getPassportDataChunk({_text, filter, selectFields}, baseUrl, page, pageLength)];
   // or mapInSeries(keys, elt2PromiseFn)
 
   // caller e.g. : [].concat(responses);
@@ -107,7 +210,7 @@ export function getPassportData(
   return response;
 }
 export async function getPassportDataChunk(
-  { accessionNumbers = [], genotypeIds = [], selectFields = [], _text },
+  { accessionNumbers = [], genotypeIds = [], selectFields = [], _text, filter },
   baseUrl, page, pageLength) {
 
   let url = new URL("/api/genesys/accession/query", baseUrl);
@@ -133,6 +236,9 @@ export async function getPassportDataChunk(
     if (page ?? false) {
       queryParams.push('p=' + page);
     }
+  }
+  if (filter ?? false) {
+    Object.assign(payload, filter);
   }
   // pageLength is not passed if it is the default (100).
   if ((pageLength ?? false) && (pageLength !== 100)) {
@@ -409,7 +515,32 @@ export const passportFieldNamesCategory = [
 
   "genus",
 
+  "instituteCode",
 ];
+
+/** Fields which can be provided as filters in the body of /query API endpoint.
+ * This is currently just category fields, i.e. a subset of
+ * passportFieldNamesCategory, which is a subset of passportFieldNames.
+ * createdDate is not a category field, and may be filtered by a date range {ge, le}.
+ */
+export const passportFieldNamesFilterable = [
+  'crop.name',
+  'instituteCode',
+  'countryOfOrigin.name',
+  'genus',
+  // createdDate
+];
+
+
+export const cropPretzel2Genesys = {
+  "Barley" : "barley",
+  "Chickpea" : "chickpea",
+  "Field Pea" : "pea",
+  "Lentil" : "lentil",
+  "Wheat" : "wheat",
+};
+
+
 
 //------------------------------------------------------------------------------
 
