@@ -10,6 +10,11 @@ import { chunk } from 'lodash/array.js';
 const dLog = console.debug;
 //------------------------------------------------------------------------------
 
+/** Genolink API default page length, i.e. this is the default value used if API
+ * query parameter &p= is not provided in the request URL
+ */
+export const pageLengthDefault = 100;
+
 /** In the passport data rows there are 2 name / identity fields :
  * .  accessionNumber
  * .  genotypeID
@@ -69,6 +74,9 @@ export class PassportFilter {
     }
   }
 
+  /** unused draft, includes removing `this` when it is .empty(),
+   * which is not done, but may be considered.
+   */
   set_(key, value) {
     if (key === 'crop.name') {
       if (value?.length) {
@@ -179,8 +187,10 @@ export class PassportFilter {
  * @param {string} query._text	optional text string to search for.
  * If provided, then neither of {accessionNumbers, genotypeIds} are required.
  * @param {string} query.filter	optional filter such as {"crop": ["groundnuts", "lentil"]}
+ * @param {string} query.filterCode from previous response, can be used to get
+ * further pages with the same query parameters.
  * @param {number} query.page	optional, only used if _text
- * @param {number} query.pageLength	optional, default 100.
+ * @param {number} query.pageLength	optional, default pageLengthDefault.
  *
  * @param {string} baseUrl - The base URL of the API (e.g., "https://genolink.plantinformatics.io").
  * @returns {Promise<any>} - Resolves with the JSON response from the API.
@@ -188,10 +198,9 @@ export class PassportFilter {
  */
 export function getPassportData(
   {accessionNumbers = [], genotypeIds = [], selectFields = [], _text, filter,
-   page, pageLength = 100 }, baseUrl) {
+   filterCode, page, pageLength = pageLengthDefault }, baseUrl) {
   /** default page size of Genolink
-   * By using (<=) 100, it is not necessary to use &p= &l=
-  pageLength = 100,
+   * By using (<=) pageLengthDefault, it is not necessary to use &p= &l=
    */
   const
   accessionNumbersIsKey = accessionNumbers.length > 0,
@@ -202,7 +211,8 @@ export function getPassportData(
   /** array of promises; just 1 if ! chunks.length. */
   response = chunks.length ?
     chunks.map(elt2PromiseFn) :
-    [getPassportDataChunk({_text, filter, selectFields}, baseUrl, page, pageLength)];
+    [getPassportDataChunk(
+      {_text, filter, filterCode, selectFields}, baseUrl, page, pageLength)];
   // or mapInSeries(keys, elt2PromiseFn)
 
   // caller e.g. : [].concat(responses);
@@ -210,7 +220,7 @@ export function getPassportData(
   return response;
 }
 export async function getPassportDataChunk(
-  { accessionNumbers = [], genotypeIds = [], selectFields = [], _text, filter },
+  { accessionNumbers = [], genotypeIds = [], selectFields = [], _text, filter, filterCode },
   baseUrl, page, pageLength) {
 
   let url = new URL("/api/genesys/accession/query", baseUrl);
@@ -228,20 +238,28 @@ export async function getPassportDataChunk(
   // encodeURIComponent() is not needed because field names are alphabetic [A-Za-z.].
   if (selectFieldsAN.length) {
     queryParams.push('select=' + selectFieldsAN.join(','));
-    // Probably required iff the full list of keys is sent in each request.
-    // + '&p=' + page + '&l=' + pageLength;
   }
+  /* Page params could be used if the full list of keys were sent in each
+   * request, but the list of keys is chunked into separate requests.
+   * They are relevant for search, e.g.  body search filters such as _text, and filterCode, 
+   // + '&p=' + page + '&l=' + pageLength;
+   */
+  // maybe : ! (accessionNumbers.length || genotypeIds.length) &&
+  if (page ?? false) {
+    queryParams.push('p=' + page);
+  }
+  if (filterCode ?? false) {
+    queryParams.push('f=' + filterCode);
+  } else {
   if (_text ?? false) {
     payload._text = _text;
-    if (page ?? false) {
-      queryParams.push('p=' + page);
-    }
   }
   if (filter ?? false) {
     Object.assign(payload, filter);
   }
-  // pageLength is not passed if it is the default (100).
-  if ((pageLength ?? false) && (pageLength !== 100)) {
+  }
+  // pageLength is not passed if it is the default (pageLengthDefault).
+  if ((pageLength ?? false) && (pageLength !== pageLengthDefault)) {
     queryParams.push('l=' + pageLength);
   }
   url += '?' + queryParams.join('&');
@@ -381,13 +399,13 @@ function fillInMissingData(accessionNumbers, genotypeIds, _text, selectFields, s
     fnName, accessionNumbers, genotypeIds, selectFields,
     accessionNumberAdded, data, keyName, map, keys, parallel);
     */
-  /** From the original response only .content is used; if other parts are
-   * needed then it can be copied with :
-   *   Object.assign(Object.assign({}, data), {content : parallel})
-   * Update : return just the array, to enable easier concat() of chunks;
-   * currently no field other than .content is required.
+  /** Originally (until 33e2d223) just the .content of the response was used.
+   * Now returning the whole response to enable .filterCode to be accessed by
+   * loadPage().
+   * Modify the .content order - use parallel.
    */
-  return parallel; // {content : };
+  data = Object.assign(Object.assign({}, data), {content : parallel});
+  return data;
 }
 
 /**
