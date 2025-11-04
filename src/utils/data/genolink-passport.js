@@ -136,6 +136,77 @@ export class PassportFilter {
 
 //------------------------------------------------------------------------------
 
+/** Wrapper around PassportFilter.
+ * PagedData is a wrapper around this.
+ *
+ * pt.currentSearch is one of pt.pagedData[].searchKV
+ * searchName === searchNameFn(pt.pagedData[searchName].searchKV)
+ * (.currentSearch and .searchKV) are {PassportSearch}
+ * PassportSearch.filter is {PassportFilter}
+ */
+export class PassportSearch {
+  static className = 'PassportSearch';
+
+  constructor(currentSearch) {
+    Object.assign(this, currentSearch);
+  }
+
+  /** Map a search description (.currentSearch or .searchKV) to a text
+   * name for caching in a container object (PagedData())
+   */
+  searchNameFn() {
+    const
+    name = ((this.key ?? '') + '|' + (this.value ?? '')) +
+      (this.filter ? '|' + JSON.stringify(this.filter) : '');
+    return name;
+  }
+
+  /** Update search parameters in response to user action.
+   *
+copy current; include update - create new; calc name; lookup;
+use existing if found, otherwise store new;
+current = new
+ *
+ * @param signalChange	function to signal search param change, for reactive update
+ * @param currentSearch	current search parameters; contents which are not
+ * changed by key/value are retained.
+ * @param key	search param changed by user
+ * @param value	new search string value selected by user
+ */
+  static update(signalChange, currentSearch, key, value) {
+    const fnName = 'update';
+    // clone before modifying, and assign type.
+    currentSearch = new PassportSearch(currentSearch);
+    /** true if search is modified by key/value. */
+    let changed = true;
+    if (genolinkFieldNames.includes(key)) {
+      // key cannot be searched via /query _text
+      changed = false;
+    } else if (key === 'crop.name') {
+      PassportFilter.update(currentSearch, key, value);
+    } else if (value) {
+      if (Array.isArray(value)) {
+        value = value.map(o => '"' + o + '"').join('|');
+      }
+      Object.assign(currentSearch, {key, value});
+      // Object.assign() bypasses `set changeCount()`
+    } else {
+      if (currentSearch.key === key) {
+        dLog(fnName, 'removing', currentSearch, value);
+        Object.assign(currentSearch, {key : 'All', value : ""});
+      }
+    }
+    if (changed) {
+      delete currentSearch.filterCode;
+      signalChange(currentSearch);
+    }
+    return currentSearch;
+  }
+
+}
+
+//------------------------------------------------------------------------------
+
 /**
  * @file genolink-passport.js
  * 
