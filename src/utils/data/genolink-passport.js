@@ -2,6 +2,9 @@ import { chunk } from 'lodash/array.js';
 
 // import { mapInSeries } from './promises'; // .js
 
+import country2Region from './Country2Region.json';
+console.log('country2region', country2Region);
+
 //------------------------------------------------------------------------------
 
 /* global URL */
@@ -151,6 +154,13 @@ export class PassportSearch {
     Object.assign(this, currentSearch);
   }
 
+  get isSearch() {
+    const
+    is = (this.value ?? false) ||
+      Object.values(this.filter)[0]?.length;
+    return is;
+  }
+
   /** Map a search description (.currentSearch or .searchKV) to a text
    * name for caching in a container object (PagedData())
    */
@@ -298,6 +308,7 @@ export async function getPassportDataChunk(
 
   const
   fnName = 'getPassportDataChunk',
+  isSearch = _text || filter,
   /** selectFields === [] means all fields are selected. */
   accessionNumberAdded = selectFields.length && !selectFields.includes("accessionNumber"),
   selectFieldsAN = accessionNumberAdded ? 
@@ -358,7 +369,7 @@ export async function getPassportDataChunk(
       throw new Error(`Error fetching passport data: ${response.status} ${response.statusText}`);
     }
     return await response.json()
-      .then(data => fillInMissingData(accessionNumbers, genotypeIds, _text, selectFields, selectFieldsAN, accessionNumberAdded, data));
+      .then(data => fillInMissingData(accessionNumbers, genotypeIds, isSearch, selectFields, selectFieldsAN, accessionNumberAdded, data));
   } catch (error) {
     console.error("Error in getPassportData:", error.message, url, payload, error);
     throw error;
@@ -428,8 +439,8 @@ desired output :
     ],
 
  */
-function fillInMissingData(accessionNumbers, genotypeIds, _text, selectFields, selectFieldsAN, accessionNumberAdded, data) {
-  if (_text && ! accessionNumbers?.length && ! genotypeIds.length) {
+function fillInMissingData(accessionNumbers, genotypeIds, isSearch, selectFields, selectFieldsAN, accessionNumberAdded, data) {
+  if (isSearch && ! accessionNumbers?.length && ! genotypeIds.length) {
     accessionNumbers = data.content.mapBy('accessionNumber');
   }
   // set up test case
@@ -749,7 +760,11 @@ export function missingCells(rows, selectFields) {
   missing = rows.reduce(
     (result, row) => {
       const
-      /** missing fields in row */
+      /** missing fields in row.
+       * 'null' is from an API response, so it is not missing for the purpose of
+       * this function, which is to identify cells which have not been
+       * requested and hence should be requested.
+       */
       missingFields = selectFields.filter(f => !row[f] || row[f] === '_');
       if (missingFields.length)
       {
@@ -793,5 +808,38 @@ export function requestMissingCells(requestCache, missing, getNamedRows) {
   return promises;
 }
 
+
+//------------------------------------------------------------------------------
+
+/** Get data values available for each of the Genolink / Genesys filter columns.
+ * @returns {Promise<any>} - Resolves with the JSON response from the API.
+ * Result currently has these keys :
+ * - institute
+ * - crop
+ * - taxonomy
+ * - OriginOfMaterial
+ * - BiologicalStatus
+ * - TypeOfGermplasmStorage
+ * The value of each key is an array of strings.
+ * Another key is _text, with value "anything".
+ */
+export function possibleValues(baseUrl) {
+  let url = new URL('/api/genesys/passportFilter/possibleValues', baseUrl);
+  const fnName = 'possibleValues';
+
+  const resultP = fetch(url).then(response => response.json());
+  resultP.catch(error => dLog('Error in ', fnName, error.message, url, error));
+  // resultP.then(values => console.log(values));
+  return resultP;
+}
+
+//------------------------------------------------------------------------------
+
+
+export const countryNames = country2Region.mapBy('name');
+export const countryNameToAlpha3 =
+  Object.fromEntries(country2Region.map(c => [c.name, c['alpha-3']]));
+export const countryAlpha3ToName =
+  Object.fromEntries(country2Region.map(c => [c['alpha-3'], c.name]));
 
 //------------------------------------------------------------------------------
