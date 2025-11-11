@@ -100,7 +100,7 @@ export class PassportFilter {
 
       case 'crop.name' :
         if (value?.length) {
-          b.crop = value.map(crop => cropPretzel2Genesys[crop] || crop);
+          b.crop = value.map(crop => cropPretzel2Genesys[crop] || crop.toLowerCase());
         }
         break;
 
@@ -112,7 +112,8 @@ export class PassportFilter {
 
       case 'countryOfOrigin.name' :
         if (value?.length) {
-          b.countryOfOrigin = {code3 : value};
+          const code3 = value.map(name => countryNameToAlpha3[name] || name);
+          b.countryOfOrigin = {code3};
         }
         break;
 
@@ -182,6 +183,7 @@ current = new
  * changed by key/value are retained.
  * @param key	search param changed by user
  * @param value	new search string value selected by user
+ * @return {PassportSearch} currentSearch, possibly a modified copy.
  */
   static update(signalChange, currentSearch, key, value) {
     const fnName = 'update';
@@ -192,7 +194,7 @@ current = new
     if (genolinkFieldNames.includes(key)) {
       // key cannot be searched via /query _text
       changed = false;
-    } else if (key === 'crop.name') {
+    } else if (passportFieldNamesFilterable.includes(key)) {
       PassportFilter.update(currentSearch, key, value);
     } else if (value) {
       if (Array.isArray(value)) {
@@ -328,6 +330,12 @@ export async function getPassportDataChunk(
    */
   // maybe : ! (accessionNumbers.length || genotypeIds.length) &&
   if (page ?? false) {
+    if (accessionNumbers?.length || genotypeIds?.length) {
+      console.warn(
+        fnName, 'page', page, _text, filter, filterCode,
+        accessionNumbers?.length,  genotypeIds?.length
+      );
+    }
     queryParams.push('p=' + page);
   }
   if (filterCode ?? false) {
@@ -835,11 +843,20 @@ export function possibleValues(baseUrl) {
 
 //------------------------------------------------------------------------------
 
-
-export const countryNames = country2Region.mapBy('name');
+/** For some countries, the full name in country2Region differs from the
+ * name in the received Passport data for countryOfOrigin.name.
+ */
+export const countryNameMap = {
+  ['United States of America']: 'United States',
+};
+function countryNameFix(name) {
+  return countryNameMap[name] || name;
+}
+export const countryNames = country2Region.mapBy('name')
+  .map(countryNameFix);
 export const countryNameToAlpha3 =
-  Object.fromEntries(country2Region.map(c => [c.name, c['alpha-3']]));
+  Object.fromEntries(country2Region.map(c => [countryNameFix(c.name), c['alpha-3']]));
 export const countryAlpha3ToName =
-  Object.fromEntries(country2Region.map(c => [c['alpha-3'], c.name]));
+  Object.fromEntries(country2Region.map(c => [c['alpha-3'], countryNameFix(c.name)]));
 
 //------------------------------------------------------------------------------
