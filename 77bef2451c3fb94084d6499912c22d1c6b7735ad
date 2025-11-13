@@ -1,0 +1,17 @@
+The commit message was swapped with the pretzel commit 11de5f15.  Following is the correct commit message :
+
+use query body filter for country
+
+package.json : update version: to ^1.0.38
+
+genolink-passport.js :
+  body() :
+    for those crops not listed in cropPretzel2Genesys[], apply .toLowerCase() because in possibleValues they are all in lower case, and lower case is accepted (case insensitive) in /query body filter.
+    .countryOfOrigin.code3 : use countryNameToAlpha3[] to map name.
+
+  PassportSearch.update() : handle remaining category fields (e.g. country) as already done for crop.name : add to filter using PassportFilter.update().
+passportFieldNamesFilterable
+  getPassportDataChunk() : warn if passed both page and id arrays.
+  add countryNameMap to map from country2Region to the name in the received Passport data for countryOfOrigin.name, and use in countryNames, countryNameToAlpha3, countryAlpha3ToName.
+
+add Country2Region.json, copied from plantinformatics/genolink/shared-data/Country2Region.json d6428037
