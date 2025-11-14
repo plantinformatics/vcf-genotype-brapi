@@ -33,6 +33,8 @@ export const fieldName2ParamName = {
   accessionNumber : 'accessionNumbers'
 };
 
+export const genotypeIDnone = 'Not yet genotyped';
+
 //------------------------------------------------------------------------------
 
 /* This class provides a mapping required from field names listed in
@@ -730,7 +732,9 @@ export async function accessionNumbers2genotypeIds(accessionNumbers, baseUrl) {
 export class FieldsRows {
   constructor(missingFields) {
     this.missingFields = missingFields;
-    this.ids = [];
+    /** Note variation of capitalisation of genotypeIDs / genotypeIds.
+     * related ; fieldName2ParamName */
+    this.ids = {genotypeIDs : [], accessionNumbers : []};
   }
   /** @return a text key to group ids by the fields which they require data for. */
   static key(missingFields) {
@@ -740,10 +744,15 @@ export class FieldsRows {
    * enabling duplicate requests to be detected. */
   get requestKey() {
     const
-    /** .ids.length is expected to be 500 - 10000, and the order may be consistent,
-     * so .ids.sort() may not enhance performance. */
-    text = FieldsRows.key(this.missingFields) + ':' + this.ids.length + '_' +
-      this.ids/*.sort()*/.join(',');
+    text = FieldsRows.key(this.missingFields) + ':' + 
+      idsJoin(this.ids, 'genotypeIDs') +
+      idsJoin(this.ids, 'accessionNumbers');
+    /** .ids.{genotypeIDs,accessionNumbers}.length is expected to be 500 -
+     * 10000, and the order may be consistent,
+     * so .ids.{genotypeIDs,accessionNumbers}.sort() may not enhance performance. */
+    function idsJoin(ids, key) {
+      return '|' + key + '|' + ids[key].length + '_' +  ids[key]/*.sort()*/.join(',');
+    }
     return text;
   }
 }
@@ -752,10 +761,11 @@ export class FieldsRows {
 /** Scan rows for missing cells.
  * @param rows	tableData
  * @param {Array<string>} [selectFields] - An array of Passport data field names for which data is required.
- * @return [key] => {missingFields, ids : []}
+ * @return { [key] => FieldsRows}
  * where key is a text form of missingFields (sorted to recognise uniqueness, for grouping),
  * missingFields is an array of string field names,
- * and ids is an array of string genotypeIDs which are missing those fields.
+ * and ids.{genotypeIDs,accessionNumbers} are arrays of string row ids which are
+ * missing those fields.
  */
 export function missingCells(rows, selectFields) {
   const
@@ -779,7 +789,14 @@ export function missingCells(rows, selectFields) {
         const
         key = FieldsRows.key(missingFields),
         request = result[key] || (result[key] = new FieldsRows(missingFields));
-        request.ids.push(row.genotypeID);
+        /** Genolink accepts either accessionNumber or genotypeID as id in a request. */
+        if (row.accessionNumber) {
+          request.ids.accessionNumbers.push(row.accessionNumber);
+        } else if (row.genotypeID !== genotypeIDnone) {
+          request.ids.genotypeIDs.push(row.genotypeID);
+        } else {
+          console.warn(fnName, 'no id in', row);
+        }
       };
       return result;
     },
