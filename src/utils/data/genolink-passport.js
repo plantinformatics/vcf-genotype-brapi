@@ -719,7 +719,34 @@ export async function accessionNumbers2genotypeIds(accessionNumbers, baseUrl) {
   }
 }
 
+//--------------------------------------------------------------------------------
 
+/** Filter the given rows; if a row has one of the given id fields, and a row
+ * with the same value for that field has already been seen, then filter it out.
+ * @param rows  array of object
+ * This matches the result type of tableData(), searchData(), sampleData() in
+ * ember-multi2-select.js.
+ * @param idFields	names of id fields of rows.
+ * e.g. ['genotypeID', 'accessionNumber']
+ */
+export function uniqueByIds(rows, idFields) {
+  const
+  fnName = 'uniqById',
+  sets = idFields.map(fieldName => new Set()),
+  uniq = rows.filter(r => {
+    const dupField = idFields.find((fieldName, i) => {
+      const
+      id = r[fieldName],
+      dup = id && sets[i].has(id);
+      if (! dup) {
+        sets[i].add(id);
+      }
+      return dup;
+    });
+    return ! dupField;
+  });
+  return uniq;
+}
 
 //--------------------------------------------------------------------------------
 
@@ -864,7 +891,22 @@ export function possibleValues(baseUrl) {
  * name in the received Passport data for countryOfOrigin.name.
  */
 export const countryNameMap = {
+  /* Prepared with :
+   * from fieldsUniqueValues .countryOfOrigin.name : sed 's/.*: //', then (replace-string "\n​\n" "\n")
+   * diffp  'sort Country2Region.name'  'sort fieldsUniqueValues.countryOfOrigin.name' > name.diff
+   * (replace-regexp "< \"\\(.+\\)\"\n> \"\\(.+\\)\"\n" "['\\1']: '\\2',")
+   */
+  ['Iran, Islamic Republic of']: 'Iran',
+  ['Moldova, Republic of']: 'Moldova',
+  ['Netherlands, Kingdom of the']: 'The Netherlands',
+  ['Palestine, State of']: 'Palestinian Territory',
+  ['Romania']: 'Romania, Socialist Republic of',
+  ['Russian Federation']: 'Russia',
+  ['Syrian Arab Republic']: 'Syria',
+  ['Türkiye']: 'Turkey',
+  ['United Kingdom of Great Britain and Northern Ireland']: 'United Kingdom',
   ['United States of America']: 'United States',
+  ['Venezuela, Bolivarian Republic of']: 'Venezuela',
 };
 function countryNameFix(name) {
   return countryNameMap[name] || name;
