@@ -33,7 +33,11 @@ export const fieldName2ParamName = {
   accessionNumber : 'accessionNumbers'
 };
 
-export const genotypeIDnone = 'Not yet genotyped';
+/** When search returns an accession which does not have a corresponding genotypeID
+ * this text is displayed in passport-table.
+ * It indicates that the accession is not in a dataset.
+ */
+export const genotypeIDnone = 'Not in dataset';
 
 //------------------------------------------------------------------------------
 
@@ -806,11 +810,12 @@ export function missingCells(rows, selectFields) {
     (result, row) => {
       const
       /** missing fields in row.
-       * 'null' is from an API response, so it is not missing for the purpose of
+       * null is from an API response, so it is not missing for the purpose of
        * this function, which is to identify cells which have not been
        * requested and hence should be requested.
        */
-      missingFields = selectFields.filter(f => !row[f] || row[f] === '_');
+      missingFields = selectFields.filter(f =>
+        (row[f] !== null && !row[f]) || row[f] === '_');
       if (missingFields.length)
       {
         const
