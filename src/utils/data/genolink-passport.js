@@ -167,6 +167,16 @@ export class PassportSearch {
       Object.values(this.filter)[0]?.length;
     return is;
   }
+  /** @return true if the search is just the initial default search, which is
+   * crop.name : [dataset._meta.Crop] */
+  get searchIs1Crop() {
+    const
+    keys = Object.keys(this.filter),
+    is = ! (this.value ?? false) &&
+      (keys.length === 1) && (keys[0] === 'crop.name') &&
+      (Object.values(this.filter).length === 1);
+    return is;
+  }
 
   /** Map a search description (.currentSearch or .searchKV) to a text
    * name for caching in a container object (PagedData())
