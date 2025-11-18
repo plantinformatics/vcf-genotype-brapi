@@ -347,12 +347,12 @@ export async function getPassportDataChunk(
   if (filterCode ?? false) {
     queryParams.push('f=' + filterCode);
   } else {
-  if (_text ?? false) {
-    payload._text = _text;
-  }
-  if (filter ?? false) {
-    Object.assign(payload, filter);
-  }
+    if (_text ?? false) {
+      payload._text = _text;
+    }
+    if (filter ?? false) {
+      Object.assign(payload, filter);
+    }
   }
   // pageLength is not passed if it is the default (pageLengthDefault).
   if ((pageLength ?? false) && (pageLength !== pageLengthDefault)) {
@@ -378,7 +378,9 @@ export async function getPassportDataChunk(
 
   try {
     const response = await fetch(url.toString(), options);
-    dLog(fnName, response.ok, response.json, response);
+    dLog(
+      fnName, response.ok, response.status, page, pageLength, filterCode, _text,
+      filter, accessionNumbers.length, genotypeIds.length, response.url); // .json
     if (!response.ok) {
       throw new Error(`Error fetching passport data: ${response.status} ${response.statusText}`);
     }
