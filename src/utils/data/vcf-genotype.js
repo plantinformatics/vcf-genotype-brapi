@@ -308,6 +308,7 @@ function vcfGenotypeLookup(datasetDir, scope, preArgs_, nLines, dataOutCb, cb) {
      *        %TGT            Translated genotype (e.g. C/A)
      */
     formatGT = (preArgs.requestFormat === 'CATG') ? '%TGT' : '%GT',
+    requestNulls = (preArgs.genotypeHasNull ? ':%NU' : ''),
     /** now INFO/MAF is added if not present, by
      * vcfGenotypeLookup.{bash,Makefile} : dbName2Vcf() / %.MAF.vcf.gz
      * So requestInfo means just 'request INFO/tSNP' - no longer needed because
@@ -320,7 +321,7 @@ function vcfGenotypeLookup(datasetDir, scope, preArgs_, nLines, dataOutCb, cb) {
     formatChromosome = scope ? '' : '%CHROM\t',
     format = formatChromosome + '%ID\t%POS' + '\t%REF\t%ALT' +
       '\t%INFO' +
-      '[\t' + formatGT + ']\n';
+      '[\t' + formatGT + requestNulls + ']\n';
     /** Params passed to query if view|query is used, otherwise to command. */
     const paramsForQuery = ['-queryStart', headerOption, '-f', format, '-queryEnd'];
     moreParams = moreParams.concat(paramsForQuery);

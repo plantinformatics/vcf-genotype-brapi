@@ -266,6 +266,7 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
   meta = {},
   /** true if column is genotype format value. */
   columnIsGT,
+  columnIsNU,
   columnNames,
   sampleNames,
   nFeatures = 0;
@@ -328,13 +329,39 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
       /* between versions 1.9 and 1.19 of bcftools, this changed '# [1]ID' to '#[1]ID'
        * 1.9 is current on centos (2024Jan).
        */
-      columnIsGT = l
-        .split(/\t\[[0-9]+\]/)
+      const
+      columnHeaders = l
+        .split(/\t\[[0-9]+\]/);
+      columnIsNU = columnHeaders.map(ch => ch.endsWith(':NU'));
+      const
+      /** reduce :GT...:NU to :GT form */
+      withoutNU =  columnHeaders.map((ch, i) => {
+        // e.g. ch === 'AGG47808CHIC1-B00001-10-02:GT:[7]AGG47808CHIC1-B00001-10-02:NU'
+        // i.e. ch.endsWith(':NU')
+        if (columnIsNU[i]) {
+          /** if true, check that the sample name part matches,
+           * i.e. sampleName:GT:[7]sampleName:NU */
+          const verify = true;
+          if (verify) {
+            const match = ch.match(/(.+):GT:\[[0-9]+\](.+):NU/);
+            if ((match.length !== 3) || (match [1] !== match[2])) {
+              dLog(fnName, match, ch, i);
+            }
+          }
+          const match = ch.match(/(.+):\[[0-9]+\].+:NU/);
+          if (match.length !== 2) {
+            dLog(fnName, match, ch, i);
+          } else {
+            ch = match[1];
+          }
+        }
+        return ch;
+      });
+      columnIsGT = withoutNU
         .map((name) => name.endsWith(':GT'));
       // trim off :GT, and split at 'tab[num]'
-      columnNames = l
-        .replaceAll(':GT', '')
-        .split(/\t\[[0-9]+\]/);
+      columnNames = withoutNU
+        .map(ch => ch.replaceAll(':GT', ''));
       columnNames[0] = columnNames[0].replace(/^# ?\[1\]/, '');
       columnNames = columnNameINFOFix(columnNames);
       // nColumnsBeforeSamples is 2 or 3 in this case : skip (CHROM,) ID, POS.
@@ -420,8 +447,23 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
           let prefix = fieldNameF.match(/^([^.]+)\..*/);
           prefix = prefix && prefix[1];
           if (prefix) {
+            if (columnIsNU[i]) {
+              /** :0 means not null, so discard it and keep just the genotype value
+               * :1 means null, so discard the genotype value (./.) and show as N.
+               * i.e. map x:0 to x, and x:1 to N */
+              const match = value.match(/^(.+):([01])$/);
+              if (match) {
+                if (match[2] === '0') {
+                  value = match[1];
+                } else {
+                  value = 'N';
+                }
+              } else {
+                dLog(fnName, value, i);
+              }
+            }
             /** replace A/A with A, 1/1 with 2 (i.e. x/y -> x+y). */
-            if (columnIsGT[i]) {
+            if ((value !== 'N') && columnIsGT[i]) {
               let match = value.match(/^(\w)[|/](\w)$/);
               if (! match) {
               } else if (requestFormat === 'Numerical') {
