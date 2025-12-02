@@ -80,10 +80,13 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
     const groupedFilters = filter.features.reduce((grouped, feature) => {
       grouped[feature.matchRef].push(feature.position);
       return grouped;
-    }, {true : [], false : []});
+    }, {true : [], false : [], null : []});
     const first = groupedFilters[refFirst];
     /** @return regexp to be used by grep. '.' will match | / etc */
     function refToGenotype(matchRef, matchHet) {
+      if (matchRef === null) {
+        return './.:1';
+      }
       const
       /** map {false,true} -> {1,0} */
       value = + ! matchRef,
@@ -125,8 +128,10 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
           /* split on (tab genotype newline), then
            * trim off the '' created from trailing (... newline).
            */
-          /** Sample names which matched in the first query.  */
-          const matchedSamples = samplesValues.split(/\t...\n/g);
+          /** Sample names which matched in the first query.
+           * Optionally match the :[01] which is output by :%NU
+           */
+          const matchedSamples = samplesValues.split(/\t...(:[01])?\n/g);
           if (matchedSamples.at(-1) === '') {
             matchedSamples.pop();
           }
