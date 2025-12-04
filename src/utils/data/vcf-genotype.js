@@ -71,17 +71,20 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
   if (filter) {
     parseStringFields(filter, ['matchHet']);
     const matchHet = filter.matchHet;
+    const genotypeHasNull = filter.genotypeHasNull;
     filter.features.forEach(f => parseStringFields(f, ['position', 'matchRef']));
     /** The purpose of allowing the caller to nominate the first SNP to filter
      * on, by listing it first, is that the 2nd query can be limited to the
-     * result of the first, i.e. filteredSamples;  see comment below.  */
+     * result of the first, i.e. filteredSamples.
+     * If the result of query() filteredSamples.length < 100 it might be a good
+     * optimisation to narrow the 2nd query to filteredSamples.
+     */
     const refFirst = filter.features[0].matchRef;
     /** array of feature positions. index is matchRef, i.e. [0] is Alt, [1] is Ref */
     const groupedFilters = filter.features.reduce((grouped, feature) => {
       grouped[feature.matchRef].push(feature.position);
       return grouped;
     }, {true : [], false : [], null : []});
-    const first = groupedFilters[refFirst];
     /** @return regexp to be used by grep. '.' will match | / etc */
     function refToGenotype(matchRef, matchHet) {
       if (matchRef === null) {
@@ -94,8 +97,9 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
       /** vcfGenotypeLookup.bash uses pattern as gtMatch in : '\t'"$gtMatch"'$' */
       pattern = matchHet ?
         '.*' + value + '.*' :
-        value + '.' + value;
-      return pattern;
+        value + '.' + value,
+      colonNU = genotypeHasNull ? ':[01]' : '';
+      return pattern + colonNU;
     }
     function groupCall(group, matchRef) {
       const
@@ -103,7 +107,8 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
        * similar to --include 'GT="1/1"' but that filters SNPs not samples. */
       include = 'GT=' + refToGenotype(matchRef, matchHet),
       regions = group.map(position => scope + ':' + position).join(','),
-      preArgs = ['-r'].concat(regions).concat([include]),
+      hasNull = genotypeHasNull ? 'genotypeHasNull' : '',
+      preArgs = ['-r'].concat(regions).concat([include, hasNull]),
       p = callOutP('filter_samples', datasetId, scope, preArgs);
       console.log(fnName, preArgs.join(' '));
       return p;
@@ -119,7 +124,15 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
       });
     }
     /** Number of SNPs queried so far; filter requires counts to match this. */
-    let nSNPs = first.length;
+    let nSNPs = 0;
+    /** Request matching samples for a matchRef group (Ref, Alt, null)
+     * The matching sample counts are accumulated in counts.
+     * Filter matchedSamples by counts - require a sample to have a match for
+     * each SNP, i.e. count === nSNPs.
+     * @param group	array of SNP positions in a matchRef group (Ref, Alt, null)
+     * @param matchRef	match sample genotypes against this value
+     * @return filtered samples resulting from the requests made so far.
+     */
     function query(group, matchRef) {
       const
       promise =
@@ -141,9 +154,15 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
           /** Sample names will appear multiple times, once for each SNP genotype which they match.
            * Array.from(new Set( )) preserves order, which is preferable for GUI consistency. */
           const uniqSamples = Array.from(new Set(matchedSamples));
-          /* first.length is the number of SNPs in the first query,
-           * i.e. groupedFilters[refFirst] */
-          // next : >= nSNPs - allowMissing
+          /** Filter uniqSamples by counts - require a sample to have a match for
+           * each SNP, i.e. count === nSNPs.
+           *
+           * There is a tentative requirement to allow some number of missing
+           * matches, which can be done via this filter :
+           *   (counts[s] >= nSNPs - allowMissing)
+           *
+           * nSNPs equals the total number of SNPs processed so far.
+           */
           const filteredSamples = uniqSamples.filter(s => counts[s] === nSNPs);
           console.log(fnName, filteredSamples.length, nSNPs, uniqSamples.length, matchedSamples.length);
           return filteredSamples;
@@ -155,24 +174,30 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
     function samplesToResult(samples) {
       return samples.join('\n');
     }
-    promise =
-      query(first, refFirst)
-      .then(firstSamples =>  {
-        /** if filteredSamples.length < 100 it might be a good optimisation to
-         * narrow the 2nd query to filteredSamples. See comment re. refFirst. */
-        const
-        secondMatch = ! refFirst,
-        second = groupedFilters[secondMatch];
-        nSNPs += second.length;
-        let result;
-        if (! second.length) {
-          result = samplesToResult(firstSamples);
-        } else {
-          result = query(second, secondMatch)
-            .then(samples => samplesToResult(samples));
-        }
-        return result;
-      });
+    /** Filter : select the first occurrence of these values.
+     * This seems equivalent to .uniq().
+     */
+    const matchRefOrder = [refFirst, true, false, null]
+      .filter((value, index, array) => array.indexOf(value) === index);
+    console.log(fnName, 'matchRefOrder', JSON.stringify(matchRefOrder), JSON.stringify(filter.features));
+    const groupsToQuery = matchRefOrder
+      .map(matchRef => ({ matchRef, group: groupedFilters[matchRef] || [] }))
+      .filter(({ group }) => group.length);
+
+    if (!groupsToQuery.length) {
+      promise = Promise.resolve(samplesToResult([]));
+    } else {
+      const runGroup = ({ group, matchRef }) => {
+        nSNPs += group.length;
+        return query(group, matchRef);
+      };
+      let sequence = runGroup(groupsToQuery[0]);
+      for (let i = 1; i < groupsToQuery.length; i++) {
+        const groupDef = groupsToQuery[i];
+        sequence = sequence.then(() => runGroup(groupDef));
+      }
+      promise = sequence.then(samples => samplesToResult(samples));
+    }
   } else {
     //     -l, --list-samples: list sample names and exit
     promise = callOutP('query', datasetId, scope, /*preArgs*/ ['-l']);
