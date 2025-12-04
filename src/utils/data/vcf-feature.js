@@ -448,15 +448,29 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
           prefix = prefix && prefix[1];
           if (prefix) {
             if (columnIsNU[i]) {
+              /** The original test datasets were created with :1 meaning the
+               * data is valid (may be 0/1/2/N) i.e. not missing, ./.:1 meant N.
+               * Up to this commit, this function interpreted :1 to mean null (N).
+               * The data format is planned to switch to :1 to mean N, so
+               * digitMeansNull is added to enable working with the current test
+               * data, and switch this interpretation when the new data is
+               * received.
+               */
+              const digitMeansNull = false;
               /** :0 means not null, so discard it and keep just the genotype value
                * :1 means null, so discard the genotype value (./.) and show as N.
                * i.e. map x:0 to x, and x:1 to N */
               const match = value.match(/^(.+):([01])$/);
               if (match) {
-                if (match[2] === '0') {
+                const digitIsZero = match[2] === '0';
+                if (digitMeansNull) {
+                if (digitIsZero) {
                   value = match[1];
                 } else {
                   value = 'N';
+                }
+                } else {
+                  value = (value === './.:0') ? 'N' : match[1];
                 }
               } else {
                 dLog(fnName, value, i);

@@ -85,7 +85,8 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
     /** @return regexp to be used by grep. '.' will match | / etc */
     function refToGenotype(matchRef, matchHet) {
       if (matchRef === null) {
-        return './.:1';
+        // pattern is \..\.:0 matching .[|/].:0
+        return '\\..\\.:0';
       }
       const
       /** map {false,true} -> {1,0} */
