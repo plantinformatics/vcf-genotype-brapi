@@ -107,8 +107,10 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
        * similar to --include 'GT="1/1"' but that filters SNPs not samples. */
       include = 'GT=' + refToGenotype(matchRef, matchHet),
       regions = group.map(position => scope + ':' + position).join(','),
-      hasNull = genotypeHasNull ? 'genotypeHasNull' : '',
-      preArgs = ['-r'].concat(regions).concat([include, hasNull]),
+      hasNull = genotypeHasNull ? 'genotypeHasNull' : undefined,
+      /** Omit hasNull if undefined */
+      includeEtc = [include, hasNull].filter(x => x),
+      preArgs = ['-r'].concat(regions).concat(includeEtc),
       p = callOutP('filter_samples', datasetId, scope, preArgs);
       console.log(fnName, preArgs.join(' '));
       return p;
