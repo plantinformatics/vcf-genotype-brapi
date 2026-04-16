@@ -455,8 +455,10 @@ function addFeaturesJson(block, requestFormat, replaceResults, selectedService, 
                * digitMeansNull is added to enable working with the current test
                * data, and switch this interpretation when the new data is
                * received.
+	       * Update (2026Apr16) : the first data release is available,
+	       * so this switch is now changed from false to true.
                */
-              const digitMeansNull = false;
+              const digitMeansNull = true;
               /** :0 means not null, so discard it and keep just the genotype value
                * :1 means null, so discard the genotype value (./.) and show as N.
                * i.e. map x:0 to x, and x:1 to N */
