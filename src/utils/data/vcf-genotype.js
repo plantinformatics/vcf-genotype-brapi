@@ -60,6 +60,12 @@ const callOutP = promisify(callOut);
  * {features : array of SNP {position, matchRef}, matchHet : true/false, allowMissing : not yet defined or used }
  * The caller will place the feature which filters out the most samples first,
  * and this will be used in the first request.
+ *
+ * matchRef values and meaning
+ * | undefined | no match required |
+ * | true | match Ref |
+ * | false | match Alt |
+ * | null | match Null genotype |
  * @return promise yielding array of sample names
  */
 export { vcfGenotypeSamplesFiltered }
@@ -87,9 +93,18 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
     }, {true : [], false : [], null : []});
     /** @return regexp to be used by grep. '.' will match | / etc */
     function refToGenotype(matchRef, matchHet) {
+      /** The original test data had ./.:0 meaning Null genotype, which was
+       * indicated by digitMeansNull===false. */
+      const digitMeansNull = true;
+      /** Values of matchRef are [undefined, true, false, null], defined in
+       * param comment of vcfGenotypeSamplesFiltered() above.
+       * i.e. matchRef === null means match Null Genotype values
+       */
       if (matchRef === null) {
-        // pattern is \..\.:0 matching .[|/].:0
-        return '\\..\\.:0';
+        const digit = digitMeansNull ? '1' : '0';
+        /** regexp pattern is \..\.:0 matching .[|/].:0, i.e. ./. or .|., then
+         * :<digit> */
+        return '\\..\\.:' + digit;
       }
       const
       /** map {false,true} -> {1,0} */
