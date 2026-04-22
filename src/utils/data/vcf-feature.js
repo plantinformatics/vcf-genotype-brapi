@@ -186,6 +186,110 @@ function vcfGenotypeLookup(auth, samples, domainInteger, requestOptions, vcfData
 
 //------------------------------------------------------------------------------
 
+/** Inspect the header text of a VCF file, and return true if
+ * the header indicates that INFO contains %NU Null Genotype values.
+ * @return true if headerText contains '\n##FORMAT=<ID=NU'
+ */
+export function vcfHeaderIndicatesGenotypeHasNull(headerText) {
+  /** copied from manage-genotype.js : headerTextP(). */
+  const genotypeHasNull = !! headerText.match(/\n##FORMAT=<ID=NU/);
+  return genotypeHasNull;
+}
+
+//------------------------------------------------------------------------------
+
+/** Get the header of a VCF Genotype file.
+ * The focus in this case is the configuration information in comments in the header.
+ * The list of samples in the #CHROM line are not required here.
+ *
+ * @param auth	auth service, for sending API requests
+ * @param block	a VCF block which is viewed
+ * vcfDatasetId + scope can be used to find block, and block contains .datasetId
+ * and .scope, so it would be possible to use either block param or {datasetId,
+ * scope}.
+ * @param vcfDatasetId	block.datasetId
+ * @param scope	block.scope
+ * @return a promise yielding the header text.
+ */
+export function vcfGenotypeHeader(auth, block /*, vcfDatasetId, scope*/) {
+  /* based on extracts from manage-genotype.js : headerTextP() */
+  const
+  fnName = 'vcfGenotypeHeader',
+
+  vcfDatasetId = block.datasetId.id,
+  scope = block.scope;
+
+  //------------------------------------
+  /** Request the VCF file header for block / vcfDatasetId / scope.
+   * A promise is recorded in dataset[fnName] and the result flag is recorded in
+   * dataset._meta.genotypeHasNull; this function can be split and those actions
+   * pushed from this library to the application.
+   */
+  function doRequest() {
+    const
+    /** Not used */
+    requestFormat = 'Numerical',
+    requestSamplesAll = false,
+    requestOptions = {requestFormat, requestSamplesAll, headerOnly : true};
+    /** Possibly not required - Null genotype data is not added to Germinate yet.  */
+    addGerminateOptions(requestOptions, block);
+
+    const
+    /** Not used */
+    /** -s '' gets :
+     * Warn: subset called for sample that does not exist in header: ""... skipping
+     * Warn: subsetting has removed all samples
+     * -S /dev/null gets that last warning also.
+     */
+    samples = null,
+    /** Could use block.domain.map(locn => locn.toFixed()), but region /
+     * interval is not used when requesting the header. */
+    domainInteger = [0, 1],
+    /** if rowLimit aka nLines is 0 then finished() is true and the text is not returned */
+    rowLimit = 1e4,
+    /** The above settings are not applicable to header request. */
+    /** Request header. */
+    headerP = vcfGenotypeLookup(
+      auth, samples, domainInteger,
+      requestOptions, vcfDatasetId, scope, rowLimit)
+      .then(text => {
+        // dLog(fnName, text);
+        const hasNull = text && vcfHeaderIndicatesGenotypeHasNull(text);
+        /** copied from manage-genotype.js : headerTextP(). */
+        dLog(fnName, 'hasNull', hasNull);
+        if (hasNull) {
+          block.datasetId.set('_meta.genotypeHasNull', true);
+        }
+        /** result is not used (in getSummary()).  It contains the #CHROM line
+         * with the sample list, so it could be used. */
+        return text;
+      });
+    block.datasetId.set(fnName, headerP);
+    return headerP;
+  }
+  //------------------------------------
+
+  /* store promise in dataset;
+   * do task if undefined or (resolve and  .readyState !== 4 (which indicates OK)); 
+   * or promise.catch( retry ) */
+  let requestP = block.datasetId.get(fnName);
+  /** could check (requestP.state() === 'resolved') prior to .readyState;
+   * probably not required.  */
+  const requestNow = ! requestP || (requestP.readyState !== 4);
+  if (requestNow) {
+    requestP = doRequest();
+  } else if (requestP) {
+    /** Retry of doRequest() updates dataset .fnName. */
+    requestP.catch(() => doRequest());
+  }
+
+  return requestP;
+}
+
+
+
+//------------------------------------------------------------------------------
+
 
 /* sample data :
 

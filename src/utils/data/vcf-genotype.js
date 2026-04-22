@@ -434,7 +434,12 @@ function vcfGenotypeLookup(datasetDir, scope, preArgs_, nLines, dataOutCb, cb) {
 
   }
   const samples = preArgs.samples;
-  if (samples?.length) {
+  if (headerOnly) {
+    /* -S /dev/null causes these to be dropped from the header : ##FORMAT=<ID=NU...
+     * -s sampleName,... is OK but not applicable for headerOnly
+     * ['-f', format] above is also not applicable for headerOnly, but harmless.
+     */
+  } else if (samples?.length) {
     const
     samplesJoined = samples
       .trimEnd(/\n/)
