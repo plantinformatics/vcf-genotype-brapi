@@ -74,7 +74,13 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
   /** result */
   let promise;
 
-  if (filter) {
+  /* Could instead check Array.isArray(filter.features).  Passing an empty
+   * .features[] array to this function is not tested, and doesn't seem useful.
+   */
+  if (filter && ! filter.features?.length) {
+    console.log(fnName, 'filter.features is not given', filter);
+    promise = Promise.resolve([]);
+  } else if (filter) {
     parseStringFields(filter, ['matchHet']);
     const matchHet = filter.matchHet;
     const genotypeHasNull = filter.genotypeHasNull;
