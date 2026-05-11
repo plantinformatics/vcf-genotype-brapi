@@ -531,6 +531,7 @@ function vcfGenotypeFeaturesCounts(
       if (error) {
         throw error;
       } else if (text === undefined) {
+        summary.finish();
         result = summary.summarise();
       } else {
         summary.accumulateChunk(text);
@@ -550,8 +551,14 @@ function vcfGenotypeFeaturesCounts(
   return result;
 };
 
+/** addToInterval() augments intervals with a count, addressed by this Symbol. */
 const symbolCount = Symbol.for('count');
+/** Enable trace in class vcfToSummary. 2 enables more verbose trace. */
+const trace_vts = 1;
 
+/**
+ * Add a per-instance carry buffer, then only process complete lines from each chunk.
+ */
 class vcfToSummary {
 
   /**
@@ -561,37 +568,87 @@ class vcfToSummary {
     const
     fnName = 'vcfToSummary',
     lengthRounded = binEvenLengthRound(interval, nBins),
+    /** the interval [boundaries[0], boundaries.at(-1)] contains interval. */
     boundaries = binBoundaries(interval, lengthRounded),
-    /** map the boundaries into interval [start, end] pairs.  */
+    /** map the boundaries into interval [start, end] pairs.
+     * The number of sub-intervals i.e. bins is boundaries.length-1
+     */
     intervals = boundaries.map((b, i, a) => (i ? [a[i-1], b] : undefined))
-      .slice(1, boundaries.length-1);
+      .slice(1, boundaries.length);
     intervals.forEach((interval) => interval[Symbol.for('count')] = 0);
-    // console.log(fnName, block.id, lengthRounded, boundaries, intervals);
+    if (trace_vts > 1) {
+      console.log(fnName, block.id, lengthRounded, boundaries, intervals);
+    }
 
     // set up bins and interval tree
     this.summaryTree = createIntervalTree(intervals);
+    /* Count all lines, to check the summary in the case that interval covers
+     * the whole chromosome.
+     */
+    this.chrTotal = 0;
+
+    /** Holds an incomplete line from the end of the previous chunk.
+     * Initially empty - null.
+     */
+    this.partialLine = null;
   }
 }
 
+/**
+ * @param text lines of text, joined by \n
+ * text has \n and \t, column format.
+ */
 vcfToSummary.prototype.accumulateChunk = function (text) {
-  /** text has \n and \t, column format e.g. :
-   * # [1]ID	[2]POS	[3]REF	[4]ALT
-   * scaffold38755_1190119	1190119	C	T
-   */
-  text.split('\n')
-    .forEach((line, i) => {
+  const fnName = 'accumulateChunk';
+
+  if (this.partialLine) {
+    // Prepend incomplete line from the previous chunk.
+    text = this.partialLine + text;
+    this.partialLine = null;
+  }
+
+  const lines = text.split('\n');
+
+  // If the chunk does not end with '\n', the final element is incomplete.
+  if (!text.endsWith('\n')) {
+    this.partialLine = lines.pop();
+  }
+
+  
+  lines.forEach((line) => {
+    /** line has \t, column format e.g. :
+     * # [1]ID	[2]POS	[3]REF	[4]ALT
+     * scaffold38755_1190119	1190119	C	T
+     */
+
+    /* Optional: tolerate CRLF input.
+    if (line.endsWith('\r')) {
+      line = line.slice(0, -1);
+    }
+    */
+
       /* first line of first chunk is header line, for subsequent chunks match /^#/
        * last line of chunk may be incomplete - save it to prepend to first line of next chunk.
        */
-      // skip header line
-      if (i) {
+      /* skip the header line, e.g. '#[1]ID\t[2]POS\t[3]REF\t[4]ALT\t[5](null)'.
+       * For the first chunk, i===0 indicates it is the first line of the file.
+       * line.length === 0 is received on the last line.
+       * lines may be split on chunk boundaries.
+       */
+      if (! line.startsWith("#") && line.length) {
+        this.chrTotal++;
         // add line to interval of summaryTree;
         const
         cols = line.split('\t'),
         position = +cols[1];
+        let inInterval = false;
         this.summaryTree.queryInterval(position, position, addToInterval);
         function addToInterval(interval) {
           interval[symbolCount]++;
+          inInterval = true;
+        }
+        if (trace_vts && ! inInterval) {
+          console.log(fnName, position, line);
         }
       }
     });
@@ -604,6 +661,7 @@ vcfToSummary.prototype.accumulateChunk = function (text) {
  */
 vcfToSummary.prototype.summarise = function() {
   const
+  fnName = 'summarise',
   summaryArray = this.summaryTree.intervals
     .sort((a, b) => a[0] - b[0])
     .map(
@@ -614,8 +672,23 @@ vcfToSummary.prototype.summarise = function() {
           idWidth : [interval[1] - interval[0]]
         }));
 
-    return summaryArray;
+  if (trace_vts > 1) {
+    const binsSum = summaryArray.reduce((sum, bin) => sum + bin.count, 0);
+    console.log(fnName, this.chrTotal, binsSum);
+  }
+  return summaryArray;
 };
+
+/**  a flush method for end-of-file, in case the file does not end with a newline:
+ * Call summary.finish() before summary.summarise().
+ */
+vcfToSummary.prototype.finish = function () {
+  if (this.partialLine?.length) {
+    console.log('vcfToSummary.finish', 'incomplete line:', this.partialLine);
+    this.accumulateChunk('\n');
+  }
+};
+
 
 
 //------------------------------------------------------------------------------
