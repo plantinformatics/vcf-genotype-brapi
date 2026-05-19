@@ -10,6 +10,15 @@ console.log('country2region', country2Region);
 /* global URL */
 
 //------------------------------------------------------------------------------
+/** Base URL for HTTP GET request to open Genolink with the result of a search
+ * for genotypeIds included in the URL.
+ */
+const genolinkBaseUrlDefault = "https://genolink.plantinformatics.io";
+/** Limit for the number of genotypeIds included in the Genolink search URL. */
+const genolinkSearchIdsLimit = 100;
+
+//------------------------------------------------------------------------------
+
 const dLog = console.debug;
 //------------------------------------------------------------------------------
 
@@ -934,5 +943,53 @@ export const countryNameToAlpha3 =
   Object.fromEntries(country2Region.map(c => [countryNameFix(c.name), c['alpha-3']]));
 export const countryAlpha3ToName =
   Object.fromEntries(country2Region.map(c => [c['alpha-3'], countryNameFix(c.name)]));
+
+//------------------------------------------------------------------------------
+
+  /** Copy selected samples to a query URL to open in a Genolink tab 
+   * 
+   * Note on Genolink query params for search by GenotypeId :
+   *
+   * Example URL :
+   * https://genolink.plantinformatics.io/?filterMode=GenotypeId%20Filter&genotypeIds=AGG1WHEA1-B00014-1-01,AGG2WHEA1-B00014-1-09,AGG3WHEA1-B00002-1-39
+   *
+   * The character limit for Chrome, Firefox, and Edge is around 80,000
+   * characters for URLs.
+   * To keep the URL within this character limit, we should limit the number of
+   * IDs included in the GET request sent to genolink.
+   *
+   *  For now, limit that to 100 IDs (ie: if there's more than that in the list,
+   *  the button can't be clicked and a message like "max 100 IDs" is displayed)
+   *
+   * @param genolinkBaseUrl
+   * Base URL for HTTP GET request to open Genolink with the result of a search
+   * for genotypeIds included in the URL.
+   * default is genolinkBaseUrlDefault.
+   * @param aggSamples
+   * Only AGG samples are included in the URL, because Genolink has only AGG samples.
+   * @return string URL if there are selected samples which match the pattern for
+   * the samples which are loaded in Genolink (/^AGG/).
+   * Otherwise return falsey :
+   * - undefined if ! .selectedSamples
+   * - 0 if there are no AGG samples selected
+   *
+   * @desc
+   * Background : genolinkSearchURL was initially displayed just in
+   * genotype-samples; now it is also used in the genotype table top-bar, so the
+   * CP genotype-samples.js:genolinkSearchURL() was split into this function and
+   * a CP which was moved to manage-genotype.js.
+   */
+export function genolinkSearchURL(genolinkBaseUrl = genolinkBaseUrlDefault, aggSamples) {
+    const
+    truncatedMessage = (aggSamples.length > genolinkSearchIdsLimit) ?
+      'Maximum ' + genolinkSearchIdsLimit + ' IDs' : '',
+    gIdsTruncated = truncatedMessage ? aggSamples.slice(0, genolinkSearchIdsLimit) : aggSamples,
+    /** Sample / Accession names are system data not user data, and do not require quoting ATM. */
+    genotypeIds = gIdsTruncated.join(','),
+    url = aggSamples.length &&
+      (genolinkBaseUrl + '?filterMode=GenotypeId%20Filter&genotypeIds=' + genotypeIds);
+
+  return {truncatedMessage, url};
+}
 
 //------------------------------------------------------------------------------
