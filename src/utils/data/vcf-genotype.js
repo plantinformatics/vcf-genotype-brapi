@@ -239,11 +239,14 @@ function vcfGenotypeSamplesFiltered(datasetId, scope, filter) {
  * @param datasetId  name of parent or view dataset, or vcf directory name
  * @param scope e.g. '1A'; identifies the vcf file, i.e. datasetId/scope.vcf.gz
  * @param positions required array of positions of selected SNPs
+ * @param genotypeHasNull	true means the dataset genotype VCF file header
+ * has ID=NU, i.e. it contains Null genotype data.
+ * This function will request the Null data, and include it in the haplotype values.
  *
  * @return promise yielding array of sample names
  */
 export { vcfGenotypeHaplotypesSamples }
-function vcfGenotypeHaplotypesSamples(datasetId, scope, positions) {
+function vcfGenotypeHaplotypesSamples(datasetId, scope, positions, genotypeHasNull) {
   const fnName = 'vcfGenotypeHaplotypesSamples';
 
   /** The positions are received as strings, and can be used in that form;
@@ -254,7 +257,11 @@ function vcfGenotypeHaplotypesSamples(datasetId, scope, positions) {
     /** Extract from vcfGenotypeSamplesFiltered() : groupCall, with group -> positions */
     const
     regions = positions.map(position => scope + ':' + position).join(','),
-    preArgs = ['-r'].concat(regions),
+    /** update : now genotypeHasNull is also copied from groupCall() */
+    hasNull = genotypeHasNull ? 'genotypeHasNull' : undefined,
+    /** Omit hasNull if undefined */
+    etc = [hasNull].filter(x => x),
+    preArgs = ['-r'].concat(regions).concat(etc),
     p = callOutP('haplotypes_samples', datasetId, scope, preArgs);
     console.log(fnName, preArgs.join(' '));
     return p;
